@@ -1,3 +1,5 @@
+# Frontend gitignore
+
 # Logs
 logs
 *.log
@@ -7,12 +9,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+.pnp
+.pnp.js
+
+# Production / Build
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Editor / IDE
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +29,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# Testing
+/coverage
+
+# Typescript
+*.tsbuildinfo

@@ -1,0 +1,26 @@
+# Root gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environments
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+node_modules/
+dist/
+dist-ssr/
+*.local
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
