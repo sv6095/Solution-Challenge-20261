@@ -1,0 +1,192 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+@config "../tailwind.config.ts";
+
+@layer base {
+  :root {
+    /* Sentinel Red Design System — "The Kinetic Fortress" */
+    --background: 240 15% 6%; /* #0e0e13 surface-container-lowest */
+    --foreground: 248 20% 90%; /* #e4e1e9 on-surface */
+
+    --card: 240 10% 10%; /* #1b1b20 surface-container-low */
+    --card-foreground: 248 20% 90%;
+
+    --popover: 240 12% 8%; /* #131318 surface */
+    --popover-foreground: 248 20% 90%;
+
+    --primary: 12 100% 83%; /* #ffb4a8 */
+    --primary-foreground: 0 100% 20%; /* #690100 on-primary */
+
+    --secondary: 240 2% 77%; /* #c6c6c7 */
+    --secondary-foreground: 180 2% 19%; /* #2f3131 */
+
+    --muted: 240 8% 13%; /* #1f1f25 surface-container */
+    --muted-foreground: 12 40% 81%; /* #ebbbb4 on-surface-variant */
+
+    --accent: 240 4% 21%; /* #35343a surface-container-highest */
+    --accent-foreground: 248 20% 90%;
+
+    --destructive: 0 100% 50%; /* #ff5540 primary-container */
+    --destructive-foreground: 0 100% 18%; /* #5c0000 */
+
+    --border: 260 5% 17%; /* outline-variant at low opacity */
+    --input: 240 10% 10%;
+    --ring: 12 100% 83%;
+
+    --radius: 0.25rem;
+
+    /* Sentinel Red custom tokens */
+    --surface: 240 12% 8%; /* #131318 */
+    --surface-low: 240 10% 10%; /* #1b1b20 */
+    --surface-high: 250 6% 17%; /* #2a292f */
+    --surface-highest: 248 4% 22%; /* #35343a */
+    --surface-bright: 240 4% 23%; /* #39383e */
+
+    --sentinel-red: 0 100% 50%; /* #FF0000 */
+    --sentinel-glow: 10 100% 63%; /* #ff5540 */
+    --sentinel-warm: 12 100% 83%; /* #ffb4a8 */
+    --sentinel-tertiary: 3 100% 66%; /* #ff5352 */
+
+    --on-surface: 248 20% 90%;
+    --on-surface-variant: 12 40% 81%;
+
+    --sidebar-background: 240 12% 8%;
+    --sidebar-foreground: 248 20% 90%;
+    --sidebar-primary: 12 100% 83%;
+    --sidebar-primary-foreground: 0 100% 20%;
+    --sidebar-accent: 240 10% 10%;
+    --sidebar-accent-foreground: 248 20% 90%;
+    --sidebar-border: 260 5% 17%;
+    --sidebar-ring: 12 100% 83%;
+  }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.05);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-panel-strong {
+    background: rgba(255, 255, 255, 0.08);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .hero-gradient {
+    background: radial-gradient(circle at top right, hsla(0, 100%, 50%, 0.05), transparent 50%),
+                radial-gradient(circle at bottom left, hsla(10, 100%, 63%, 0.05), transparent 50%);
+  }
+
+  .sentinel-glow {
+    box-shadow: 0 0 15px hsla(0, 100%, 50%, 0.2);
+  }
+
+  .sentinel-text {
+    color: hsl(var(--sentinel-red));
+  }
+
+  .surface-container {
+    background-color: hsl(var(--muted));
+  }
+
+  .surface-container-low {
+    background-color: hsl(var(--surface-low));
+  }
+
+  .surface-container-high {
+    background-color: hsl(var(--surface-high));
+  }
+
+  .surface-container-highest {
+    background-color: hsl(var(--surface-highest));
+  }
+
+  .kinetic-gradient {
+    background: radial-gradient(circle at center, hsl(var(--surface-low)) 0%, hsl(var(--surface)) 100%);
+  }
+
+  .sentinel-accent-bar {
+    @apply w-1 rounded-full;
+    background: hsl(var(--sentinel-red));
+  }
+
+  .input-sentinel {
+    @apply bg-[hsl(var(--surface))] border-0 border-b-2 border-transparent text-foreground rounded-sm;
+    @apply focus:border-b-[hsl(var(--sentinel-red))] focus:ring-0 focus:outline-none;
+    @apply placeholder:text-[hsl(var(--on-surface-variant)_/_0.5)];
+  }
+}
+
+@layer utilities {
+  .text-sentinel {
+    color: hsl(var(--sentinel-red));
+  }
+
+  .bg-sentinel {
+    background-color: hsl(var(--sentinel-red));
+  }
+
+  .tracking-tight-sentinel {
+    letter-spacing: -0.02em;
+  }
+}
+
+:root {
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+.dark {
+  --sidebar: hsl(240 5.9% 10%);
+  --sidebar-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(240 3.7% 15.9%);
+  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+  --sidebar-border: hsl(240 3.7% 15.9%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
