@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useMap } from "@/components/ui/map";
 import type MapLibreGL from "maplibre-gl";
-import { hubs, modeConfig, statusConfig, type Route } from "../data";
+import { modeConfig, statusConfig, type Hub, type Route } from "../data";
 
 const SOURCE_ID = "logistics-arcs-source";
 const LAYER_ID = "logistics-arcs-layer";
@@ -40,21 +40,30 @@ function generateArc(
   return coords;
 }
 
-function getHubById(id: string) {
-  return hubs.find((h) => h.id === id)!;
-}
-
 interface MapArcsProps {
+  hubs: Hub[];
   routes: Route[];
 }
 
-export function MapArcs({ routes: arcRoutes }: MapArcsProps) {
+export function MapArcs({ hubs, routes: arcRoutes }: MapArcsProps) {
   const { map, isLoaded } = useMap();
 
   const geoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
     const features: GeoJSON.Feature[] = arcRoutes.map((route) => {
-      const fromHub = getHubById(route.from);
-      const toHub = getHubById(route.to);
+      const fromHub = hubs.find((h) => h.id === route.from);
+      const toHub = hubs.find((h) => h.id === route.to);
+      if (!fromHub || !toHub) {
+        return {
+          type: "Feature" as const,
+          properties: {
+            id: `${route.from}-${route.to}`,
+            mode: route.mode,
+            status: route.status,
+            color: statusConfig.delayed.color,
+          },
+          geometry: { type: "LineString" as const, coordinates: [] },
+        };
+      }
       const coordinates = generateArc(
         [fromHub.lng, fromHub.lat],
         [toHub.lng, toHub.lat],
@@ -76,8 +85,8 @@ export function MapArcs({ routes: arcRoutes }: MapArcsProps) {
         },
       };
     });
-    return { type: "FeatureCollection", features };
-  }, [arcRoutes]);
+    return { type: "FeatureCollection", features: features.filter((f) => (f.geometry.coordinates as number[][]).length > 1) };
+  }, [arcRoutes, hubs]);
 
   const addLayer = useCallback(() => {
     if (!map) return;

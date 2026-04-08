@@ -64,7 +64,7 @@ export function NetworkMap({ hubs, routes }: NetworkMapProps) {
 
       <Map center={[-98, 39]} zoom={4} projection={{ type: "globe" }}>
         <MapControls />
-        <MapArcs routes={routes} />
+        <MapArcs hubs={hubs} routes={routes} />
 
         {hubs.map((hub) => (
           <MapMarker key={hub.id} longitude={hub.lng} latitude={hub.lat}>

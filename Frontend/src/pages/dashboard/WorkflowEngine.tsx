@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, Circle, Zap, FileText, Loader2 } from "lucide-react";
 import { useDashboardEvents, useRiskSuppliers } from "@/hooks/use-dashboard";
+import { useWorkflowEvent } from "@/hooks/use-workflow-event";
 
 const STAGES = ["DETECT", "ASSESS", "DECIDE", "ACT", "AUDIT"];
 
@@ -8,6 +9,15 @@ const WorkflowEngine = () => {
   const [currentStage, setCurrentStage] = useState(1);
   const { data: events, isLoading: eLoading } = useDashboardEvents();
   const { data: suppliers, isLoading: sLoading } = useRiskSuppliers();
+  const workflowEvent = useWorkflowEvent("demo-workflow-001");
+
+  useEffect(() => {
+    if (!workflowEvent?.stage) return;
+    const stageIndex = STAGES.findIndex((s) => s.toLowerCase() === workflowEvent.stage?.toLowerCase());
+    if (stageIndex >= 0) {
+      setCurrentStage(stageIndex);
+    }
+  }, [workflowEvent?.stage]);
 
   // Advance to DETECT when we have a critical event
   const activeEvent = events?.find((e) => e.severity === "CRITICAL") ?? events?.[0];

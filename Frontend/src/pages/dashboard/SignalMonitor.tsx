@@ -1,6 +1,19 @@
 import { Loader2 } from "lucide-react";
 import { useHazards, useNewsSignals, useDataSources } from "@/hooks/use-dashboard";
 
+const formatWhen = (value: string) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString();
+};
+
+const toReadableLink = (url: string | undefined, title: string, location: string) => {
+  const clean = (url ?? "").trim();
+  if (clean.startsWith("http://") || clean.startsWith("https://")) return clean;
+  if (clean && clean.includes(".")) return `https://${clean}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(`${title} ${location}`)}`;
+};
+
 const SignalMonitor = () => {
   const { data: hazards, isLoading: hLoading } = useHazards();
   const { data: news, isLoading: nLoading } = useNewsSignals();
@@ -25,14 +38,20 @@ const SignalMonitor = () => {
           ) : (
             <div className="space-y-3">
               {hazards?.map((h) => (
-                <div key={h.id} className="surface-container rounded-lg p-4 relative">
+                <a
+                  key={h.id}
+                  href={toReadableLink(h.url, h.title, h.location)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block surface-container rounded-lg p-4 relative hover:bg-surface-highest/40 transition-colors"
+                >
                   <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${h.severity === "High" ? "bg-sentinel" : h.severity === "Medium" ? "bg-yellow-500" : "bg-green-500"}`} />
                   <div className="flex items-center gap-2 mb-1">
                     <span>{h.type}</span>
                     <h3 className="font-headline font-bold text-sm">{h.title}</h3>
                   </div>
-                  <p className="text-label-sm text-secondary">{h.location} · {h.time}</p>
-                </div>
+                  <p className="text-label-sm text-secondary">{h.location} · {formatWhen(h.time)}</p>
+                </a>
               ))}
             </div>
           )}
@@ -53,17 +72,17 @@ const SignalMonitor = () => {
               {news?.map((n) => (
                 <a
                   key={n.id}
-                  href={n.url}
+                  href={toReadableLink(n.url, n.title, n.location)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block surface-container rounded-lg p-4 hover:bg-surface-highest/30 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="glass-panel px-2 py-0.5 rounded-sm text-label-sm">{n.source}</span>
-                    <span className="text-sentinel text-label-sm font-bold">{n.relevanceScore}% relevant</span>
+                    <span className="text-sentinel text-label-sm font-bold">{(n.relevanceScore * 100).toFixed(1)}% relevant</span>
                   </div>
                   <h3 className="font-headline font-bold text-sm mt-2">{n.title}</h3>
-                  <p className="text-label-sm text-secondary mt-1">{n.location} · {n.time}</p>
+                  <p className="text-label-sm text-secondary mt-1">{n.location} · {formatWhen(n.time)}</p>
                 </a>
               ))}
             </div>
@@ -89,7 +108,7 @@ const SignalMonitor = () => {
                   <div className="grid grid-cols-3 gap-2 text-label-sm text-secondary">
                     <div>
                       <p className="uppercase tracking-widest">Last Fetch</p>
-                      <p className="text-foreground">{s.lastFetch}</p>
+                      <p className="text-foreground">{formatWhen(s.lastFetch)}</p>
                     </div>
                     <div>
                       <p className="uppercase tracking-widest">Records</p>

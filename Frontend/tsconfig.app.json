@@ -19,6 +19,15 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@mapcn/logistics-network": [
+        "./src/mapcn/logistics-network"
+      ],
+      "@mapcn/heatmap": [
+        "./src/mapcn/heatmap"
+      ],
+      "@mapcn/delivery-tracker": [
+        "./src/mapcn/delivery-tracker"
       ]
     },
     "skipLibCheck": true,

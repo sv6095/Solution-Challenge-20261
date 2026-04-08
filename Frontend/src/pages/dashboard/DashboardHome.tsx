@@ -1,6 +1,5 @@
 import { ExternalLink, Loader2 } from "lucide-react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { hubs, routes } from "@/app/logistics/data";
 import { FilterSidebar } from "@/app/logistics/components/filter-sidebar";
 import { NetworkMap } from "@/app/logistics/components/network-map";
 import {
@@ -8,16 +7,26 @@ import {
   useDashboardEvents,
   useDashboardWorkflows,
   useDashboardSuppliers,
+  useNetworkGraph,
 } from "@/hooks/use-dashboard";
 
 const severityColor = (s: string) =>
   s === "CRITICAL" || s === "HIGH" ? "bg-sentinel/20 text-sentinel" : "bg-yellow-500/20 text-yellow-500";
+
+const formatWhen = (value: string) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString();
+};
 
 const DashboardHome = () => {
   const { data: kpis, isLoading: kpisLoading } = useDashboardKpis();
   const { data: events, isLoading: eventsLoading } = useDashboardEvents();
   const { data: workflows, isLoading: wfLoading } = useDashboardWorkflows();
   const { data: suppliers, isLoading: suppLoading } = useDashboardSuppliers();
+  const { data: graph } = useNetworkGraph();
+  const hubs = graph?.hubs ?? [];
+  const routes = graph?.routes ?? [];
 
   return (
     <div>
@@ -80,8 +89,14 @@ const DashboardHome = () => {
                 </div>
               ))
             ) : (
-              events?.slice(0, 4).map((ev) => (
-                <div key={ev.id} className="surface-container rounded-lg p-4 relative">
+              events?.map((ev) => (
+                <a
+                  key={ev.id}
+                  href={ev.url || `https://www.google.com/search?q=${encodeURIComponent(`${ev.title} ${ev.region}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block surface-container rounded-lg p-4 relative hover:bg-surface-highest/40 transition-colors"
+                >
                   <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l bg-sentinel" />
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="font-headline font-bold text-sm">{ev.title}</h3>
@@ -91,10 +106,10 @@ const DashboardHome = () => {
                   </div>
                   <p className="text-body-md text-secondary mb-2">{ev.description}</p>
                   <div className="flex items-center justify-between text-label-sm text-secondary">
-                    <span>⏱ {new Date(ev.timestamp).toDateString()}</span>
+                    <span>⏱ {formatWhen(ev.timestamp)}</span>
                     <span>👤 {ev.analyst}</span>
                   </div>
-                </div>
+                </a>
               ))
             )}
           </div>
@@ -120,8 +135,8 @@ const DashboardHome = () => {
                   <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${wf.status === "complete" ? "bg-green-400" : wf.status === "active" ? "bg-sentinel" : "bg-secondary"}`} />
                   <div>
                     <h3 className="font-headline font-bold text-sm">{wf.title}</h3>
-                    <p className="text-body-md text-secondary">{wf.description}</p>
-                    <span className="text-label-sm text-secondary">{wf.timestamp}</span>
+                    <p className="text-body-md text-secondary">{wf.description.replace("api-public", "System")}</p>
+                    <span className="text-label-sm text-secondary">{formatWhen(wf.timestamp)}</span>
                   </div>
                 </div>
               ))

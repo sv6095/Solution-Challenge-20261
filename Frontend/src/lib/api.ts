@@ -33,6 +33,7 @@ export interface RiskEvent {
   lat: number;
   lng: number;
   region: string;
+  url?: string;
 }
 
 export interface WorkflowEntry {
@@ -74,6 +75,18 @@ export interface Route {
   coordinates?: [number, number][];
 }
 
+export interface WorkflowRouteRequest {
+  origin: { lat: number; lng: number; country_code: string };
+  destination: { lat: number; lng: number; country_code: string };
+  target_currency?: string;
+}
+
+export interface WorkflowRoutesResponse {
+  route_comparison: Array<Record<string, unknown>>;
+  currency_risk_index: number;
+  recommended_mode: "sea" | "air" | "land";
+}
+
 export interface NaturalHazard {
   id: string;
   type: string;
@@ -83,6 +96,7 @@ export interface NaturalHazard {
   severity: "High" | "Medium" | "Low";
   lat: number;
   lng: number;
+  url?: string;
 }
 
 export interface NewsSignal {
@@ -139,6 +153,29 @@ export interface BillingInfo {
   suppliersLimit: number;
 }
 
+export interface NetworkHub {
+  id: string;
+  city: string;
+  lng: number;
+  lat: number;
+  type: "primary" | "secondary";
+  shipments: number;
+  region: "west" | "midwest" | "south" | "northeast";
+}
+
+export interface NetworkRoute {
+  from: string;
+  to: string;
+  mode: "air" | "ground";
+  shipments: number;
+  status: "active" | "delayed";
+}
+
+export interface NetworkGraphResponse {
+  hubs: NetworkHub[];
+  routes: NetworkRoute[];
+}
+
 /* ─── Endpoints ─────────────────────────────────────────────── */
 
 export const api = {
@@ -150,11 +187,17 @@ export const api = {
   },
   risks: {
     events: (params?: { region?: string; severity?: string }) => {
-      const q = new URLSearchParams(params as Record<string, string>).toString();
+      const clean = Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && `${v}` !== "undefined")
+      ) as Record<string, string>;
+      const q = new URLSearchParams(clean).toString();
       return request<RiskEvent[]>(`/risks/events${q ? `?${q}` : ""}`);
     },
     suppliers: (params?: { tier?: string; minScore?: number; maxScore?: number }) => {
-      const q = new URLSearchParams(params as Record<string, string>).toString();
+      const clean = Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && `${v}` !== "undefined")
+      ) as Record<string, string>;
+      const q = new URLSearchParams(clean).toString();
       return request<Supplier[]>(`/risks/suppliers${q ? `?${q}` : ""}`);
     },
   },
@@ -167,10 +210,11 @@ export const api = {
       }).toString();
       return request<Route[]>(`/routes${q ? `?${q}` : ""}`);
     },
-    osrm: (start: [number, number], end: [number, number]) =>
-      fetch(
-        `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson&alternatives=true`
-      ).then((r) => r.json()),
+    workflow: (payload: WorkflowRouteRequest) =>
+      request<WorkflowRoutesResponse>("/workflow/routes", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
   },
   signals: {
     hazards: () => request<NaturalHazard[]>("/signals/hazards"),
@@ -199,5 +243,8 @@ export const api = {
     updateProfile: (data: Partial<UserProfile>) =>
       request<UserProfile>("/settings/profile", { method: "PATCH", body: JSON.stringify(data) }),
     billing: () => request<BillingInfo>("/settings/billing"),
+  },
+  network: {
+    graph: () => request<NetworkGraphResponse>("/network/graph"),
   },
 };
