@@ -210,7 +210,7 @@ def _dataset_suppliers(limit: int = 50) -> list[dict[str, Any]]:
 
 def _api_risk_events() -> list[dict]:
     events: list[dict] = []
-    for idx, sig in enumerate(_parsed_signals(limit=150)):
+    for idx, sig in enumerate(_parsed_signals(limit=5000)):
         severity_value = float(sig.get("severity", 0) or 0)
         severity_label = "LOW"
         if severity_value >= 8:
@@ -594,7 +594,7 @@ async def api_risks_events(region: str | None = None, severity: str | None = Non
 
 @app.get("/api/risks/suppliers")
 async def api_risks_suppliers(tier: str | None = None, minScore: float | None = None, maxScore: float | None = None) -> list[dict]:
-    suppliers = await api_dashboard_suppliers(limit=50)
+    suppliers = await api_dashboard_suppliers(limit=5000)
     filtered = suppliers
     if tier:
         filtered = [s for s in filtered if s["tier"] == tier]

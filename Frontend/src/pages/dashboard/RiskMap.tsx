@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { Heatmap } from "@mapcn/heatmap";
-import { useRiskEvents } from "@/hooks/use-dashboard";
+import { useRiskEvents, useRiskSuppliers } from "@/hooks/use-dashboard";
 
 const RiskMap = () => {
   const { data: events } = useRiskEvents();
+  const { data: suppliers } = useRiskSuppliers();
 
   const heatData = useMemo(
     () =>
@@ -16,12 +17,24 @@ const RiskMap = () => {
     [events],
   );
 
+  const criticalNodes = useMemo(
+    () =>
+      (suppliers ?? [])
+        .filter((s) => s.exposureScore >= 75)
+        .map((s) => ({
+          lat: s.lat,
+          lng: s.lng,
+          score: s.exposureScore,
+        })),
+    [suppliers],
+  );
+
   return (
     <div className="space-y-4">
       <h1 className="font-headline text-3xl font-bold tracking-tight-sentinel">Risk Map</h1>
       <p className="text-body-md text-secondary">Live risk events and supplier exposure from backend datasets.</p>
-      <div className="surface-container-high rounded-lg p-3 min-h-[640px]">
-        <Heatmap data={heatData} intensity="severity_score" />
+      <div className="surface-container-high rounded-lg p-3 h-[640px]">
+        <Heatmap data={heatData} criticalNodes={criticalNodes} intensity="severity_score" />
       </div>
     </div>
   );
