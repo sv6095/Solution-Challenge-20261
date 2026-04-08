@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from reportlab.lib.pagesizes import A4
@@ -20,23 +20,33 @@ from currency.worldbank import get_inflation_rate
 from agents.assessment_agent import run_assessment
 from agents.rfq_agent import draft_rfq
 from agents.routing_agent import run_routing
-from pdf.certificate import generate_audit_certificate
+from pdf.certificate import generate_audit_certificate, generate_workflow_audit_report_pdf
 from scheduler.signal_poll import start_signal_scheduler
 from ml.xgboost_model import MODEL_PATH, train_and_save_model
-from services.firestore import read_workflow_event, write_context, write_workflow_event
+from services.llm_analysis import generate_workflow_analysis
+from services.firestore import read_context, read_workflow_event, write_context, write_workflow_event
 from services.data_registry import disruption_snapshot, registry
 from services.firebase_auth import verify_firebase_or_local_token
 from services.local_store import (
     add_audit,
     create_rfq_event,
+    create_rfq_event_linked,
     create_user,
+    get_audit,
+    get_context,
     get_user_by_email,
+    get_workflow_report,
     get_workflow_event,
     init_local_store,
     insert_signal,
     list_audit,
     list_rfq_events,
+    list_rfq_messages,
+    add_rfq_message,
+    update_rfq_status,
     list_signals,
+    list_workflow_reports,
+    upsert_workflow_report,
     upsert_context,
     upsert_workflow_event,
 )
@@ -89,6 +99,10 @@ class OnboardingRequest(BaseModel):
     company_name: str
     industry: str
     region: str
+    primary_contact_name: str | None = None
+    primary_contact_email: str | None = None
+    company_size: str | None = None
+    logistics_nodes: list[dict] = []
     suppliers: list[dict] = []
     backup_suppliers: list[dict] = []
     alert_threshold: float = 65
@@ -109,6 +123,18 @@ class WorkflowAssessRequest(BaseModel):
     event_type: str
     severity: float = Field(ge=0, le=10)
     suppliers: list[dict] = []
+
+
+class WorkflowAnalyzeRequest(BaseModel):
+    event: dict = {}
+    suppliers: list[dict] = []
+    assessment: dict | None = None
+
+
+class WorkflowReportStageUpsert(BaseModel):
+    workflow_id: str
+    stage: Literal["detect", "assess", "decide", "act", "audit"]
+    payload: dict = {}
 
 
 class RFQDraftRequest(BaseModel):
@@ -352,6 +378,21 @@ async def auth_login(payload: LoginRequest) -> dict:
         "access_token": mint_access_token(user["user_id"], user["email"]),
         "refresh_token": mint_refresh_token(user["user_id"]),
     }
+
+
+# ---------------------------------------------------------------------------
+# Frontend compatibility endpoints under /api/auth/*
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/auth/register")
+async def api_auth_register(payload: RegisterRequest) -> dict:
+    return await auth_register(payload)
+
+
+@app.post("/api/auth/login")
+async def api_auth_login(payload: LoginRequest) -> dict:
+    return await auth_login(payload)
 
 
 @app.post("/auth/google")
@@ -632,6 +673,8 @@ async def api_rfq_list(status: str | None = None) -> list[dict]:
             "eventTrigger": row["subject"],
             "dateSent": str(row["created_at"]).split("T")[0],
             "status": str(row["status"]).title(),
+            "workflowId": row.get("workflow_id"),
+            "body": row.get("body", ""),
         }
         for row in list_rfq_events(limit=200)
     ]
@@ -647,14 +690,179 @@ async def api_rfq_create(payload: dict) -> dict:
     subject = str(payload.get("eventTrigger") or payload.get("subject") or "RFQ")
     body = str(payload.get("body") or "")
     status = str(payload.get("status") or "Draft").lower()
-    create_rfq_event(rfq_id, str(payload.get("user_id") or "api-public"), recipient, subject, body, status)
+    create_rfq_event_linked(
+        rfq_id,
+        str(payload.get("user_id") or "api-public"),
+        str(payload.get("workflowId") or payload.get("workflow_id") or "") or None,
+        recipient,
+        subject,
+        body,
+        status,
+    )
     return {
         "id": rfq_id,
         "supplier": recipient,
         "eventTrigger": subject,
         "dateSent": datetime.now(timezone.utc).date().isoformat(),
         "status": status.title(),
+        "workflowId": payload.get("workflowId") or payload.get("workflow_id"),
+        "body": body,
     }
+
+
+@app.patch("/api/rfq/{rfq_id}")
+async def api_rfq_patch(rfq_id: str, payload: dict) -> dict:
+    status = payload.get("status")
+    if status is None:
+        raise HTTPException(status_code=422, detail="Missing status")
+    value = str(status).strip().lower()
+    allowed = {"draft", "pending approval", "sent", "responded", "closed"}
+    if value not in allowed:
+        raise HTTPException(status_code=422, detail=f"Invalid status. Allowed: {sorted(allowed)}")
+    updated = update_rfq_status(rfq_id, value)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return {"id": rfq_id, "status": value.title()}
+
+
+@app.get("/api/rfq/{rfq_id}/thread")
+async def api_rfq_thread(rfq_id: str) -> dict:
+    msgs = list_rfq_messages(rfq_id, limit=200)
+    return {"rfq_id": rfq_id, "messages": msgs}
+
+
+@app.post("/api/rfq/{rfq_id}/thread")
+async def api_rfq_thread_post(rfq_id: str, payload: dict) -> dict:
+    body = str(payload.get("body") or "").strip()
+    direction = str(payload.get("direction") or "note").strip().lower()
+    sender = payload.get("sender")
+    if not body:
+        raise HTTPException(status_code=422, detail="Missing body")
+    if direction not in {"outbound", "inbound", "note"}:
+        raise HTTPException(status_code=422, detail="Invalid direction")
+    msg = add_rfq_message(rfq_id, direction, str(sender) if sender else None, body)
+    return {"status": "ok", "message": msg}
+
+
+@app.get("/api/audit/compliance")
+async def api_audit_compliance() -> dict:
+    reports = list_workflow_reports(limit=1000)
+    response_times = []
+    actions: dict[str, int] = {}
+    for r in reports:
+        summary = r.get("summary") if isinstance(r.get("summary"), dict) else {}
+        rt = summary.get("response_time_seconds")
+        if isinstance(rt, (int, float)):
+            response_times.append(float(rt))
+        action = str(summary.get("action_taken") or "unknown")
+        actions[action] = actions.get(action, 0) + 1
+    avg_rt = sum(response_times) / max(1, len(response_times))
+    return {
+        "total_workflows": len(reports),
+        "avg_response_time_seconds": round(avg_rt, 1),
+        "actions_breakdown": actions,
+    }
+
+
+@app.get("/api/workflows")
+async def api_workflow_reports() -> list[dict]:
+    # List stored workflow reports (AUDIT page source of truth).
+    return list_workflow_reports(limit=200)
+
+
+@app.post("/api/workflow/analyze")
+async def api_workflow_analyze(payload: WorkflowAnalyzeRequest) -> dict:
+    result = await generate_workflow_analysis(event=payload.event, suppliers=payload.suppliers, assessment=payload.assessment)
+    return {"provider": result.provider, "analysis": result.text}
+
+
+@app.post("/api/workflow/report")
+async def api_workflow_report_upsert(payload: WorkflowReportStageUpsert) -> dict:
+    existing = get_workflow_report(payload.workflow_id) or {"workflow_id": payload.workflow_id}
+    existing[payload.stage] = payload.payload
+    existing["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Build/refresh summary snapshot for PDF executive section
+    summary = existing.get("summary") if isinstance(existing.get("summary"), dict) else {}
+    detect_evt = (existing.get("detect") or {}).get("event") if isinstance(existing.get("detect"), dict) else None
+    if isinstance(detect_evt, dict):
+        summary["event_title"] = detect_evt.get("title") or detect_evt.get("event_type")
+        summary["region"] = detect_evt.get("region") or detect_evt.get("location")
+    assess = existing.get("assess") if isinstance(existing.get("assess"), dict) else {}
+    if isinstance(assess, dict):
+        summary["exposure_usd"] = assess.get("exposure_usd")
+        summary["affected_nodes"] = assess.get("affected_nodes")
+    decide = existing.get("decide") if isinstance(existing.get("decide"), dict) else {}
+    if isinstance(decide, dict):
+        summary["recommended_mode"] = decide.get("recommended_mode")
+    act = existing.get("act") if isinstance(existing.get("act"), dict) else {}
+    if isinstance(act, dict):
+        summary["action_taken"] = act.get("decision")
+    audit = existing.get("audit") if isinstance(existing.get("audit"), dict) else {}
+    if isinstance(audit, dict):
+        summary["response_time_seconds"] = audit.get("response_time_seconds")
+
+    # If audit hasn't been finalized yet, derive response time from detect->act timestamps.
+    # This prevents PDFs from showing "— seconds" during demo runs.
+    rt_val = summary.get("response_time_seconds")
+    if not isinstance(rt_val, (int, float)) or float(rt_val) <= 0:
+        detect = existing.get("detect") if isinstance(existing.get("detect"), dict) else {}
+        act2 = existing.get("act") if isinstance(existing.get("act"), dict) else {}
+        detected_at = None
+        executed_at = None
+        if isinstance(detect, dict):
+            detected_at = detect.get("detected_at") or (detect.get("event") or {}).get("timestamp")
+        if isinstance(act2, dict):
+            executed_at = act2.get("executed_at")
+        try:
+            if detected_at and executed_at:
+                start_ms = datetime.fromisoformat(str(detected_at).replace("Z", "+00:00")).timestamp() * 1000
+                end_ms = datetime.fromisoformat(str(executed_at).replace("Z", "+00:00")).timestamp() * 1000
+                summary["response_time_seconds"] = max(0, int(round((end_ms - start_ms) / 1000)))
+        except Exception:
+            pass
+    existing["summary"] = summary
+
+    upsert_workflow_report(payload.workflow_id, existing)
+    return {"status": "ok", "workflow_id": payload.workflow_id, "stage": payload.stage}
+
+
+@app.get("/api/workflow/report/{workflow_id}")
+async def api_workflow_report_get(workflow_id: str) -> dict:
+    report = get_workflow_report(workflow_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return report
+
+
+@app.get("/api/workflow/report/{workflow_id}/pdf")
+async def api_workflow_report_pdf(workflow_id: str) -> Response:
+    report = get_workflow_report(workflow_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Not Found")
+    # Ensure summary response time is populated even if audit stage wasn't clicked.
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    rt_val = summary.get("response_time_seconds")
+    if not isinstance(rt_val, (int, float)) or float(rt_val) <= 0:
+        detect = report.get("detect") if isinstance(report.get("detect"), dict) else {}
+        act = report.get("act") if isinstance(report.get("act"), dict) else {}
+        detected_at = None
+        executed_at = None
+        if isinstance(detect, dict):
+            detected_at = detect.get("detected_at") or (detect.get("event") or {}).get("timestamp")
+        if isinstance(act, dict):
+            executed_at = act.get("executed_at")
+        try:
+            if detected_at and executed_at:
+                start_ms = datetime.fromisoformat(str(detected_at).replace("Z", "+00:00")).timestamp() * 1000
+                end_ms = datetime.fromisoformat(str(executed_at).replace("Z", "+00:00")).timestamp() * 1000
+                summary["response_time_seconds"] = max(0, int(round((end_ms - start_ms) / 1000)))
+                report["summary"] = summary
+                upsert_workflow_report(workflow_id, report)
+        except Exception:
+            pass
+    content = generate_workflow_audit_report_pdf(report, requested_by="system")
+    return Response(content=content, media_type="application/pdf")
 
 
 @app.get("/api/signals/hazards")
@@ -739,16 +947,95 @@ async def api_audit() -> list[dict]:
     ]
 
 
+def _audit_numeric_id(value: str) -> int | None:
+    raw = (value or "").strip()
+    if raw.startswith("aud_"):
+        raw = raw.replace("aud_", "", 1)
+    try:
+        return int(raw)
+    except Exception:
+        return None
+
+
+@app.get("/api/audit/{audit_id}/pdf")
+async def api_audit_pdf(audit_id: str) -> Response:
+    numeric = _audit_numeric_id(audit_id)
+    if numeric is None:
+        raise HTTPException(status_code=422, detail="Invalid audit id")
+    row = get_audit(numeric)
+    if not row:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    summary = [
+        f"Event: {row.get('action', '')}",
+        f"Timestamp: {row.get('timestamp', '')}",
+        f"Payload: {row.get('payload', '')}",
+    ]
+    content = generate_audit_certificate(f"aud_{numeric}", "system", summary)
+    return Response(content=content, media_type="application/pdf")
+
+
+@app.get("/api/audit/export")
+async def api_audit_export() -> Response:
+    rows = list_audit(limit=200)
+    lines: list[str] = []
+    for r in rows:
+        lines.append(f"[aud_{r.get('id')}] {r.get('timestamp')} — {r.get('action')} — {r.get('payload')}")
+    content = generate_audit_certificate("audit_export", "system", lines)
+    return Response(content=content, media_type="application/pdf")
+
+
 @app.get("/api/settings/profile")
-async def api_settings_profile() -> dict:
-    return {"name": "", "email": "", "company": "", "role": "Admin"}
+async def api_settings_profile(request: Request) -> dict:
+    user_id = str(request.headers.get("x-user-id") or "local-user")
+    # Prefer Firestore if enabled, else SQLite.
+    fs = read_context(user_id)
+    ctx: dict[str, Any] = {}
+    if isinstance(fs, dict) and fs:
+        ctx = dict(fs)
+    else:
+        row = get_context(user_id) or {}
+        try:
+            ctx = json.loads(row.get("payload_json") or "{}") if isinstance(row, dict) else {}
+        except Exception:
+            ctx = {}
+
+    profile = ctx.get("operator_profile") if isinstance(ctx.get("operator_profile"), dict) else {}
+    return {
+        "name": str(profile.get("name") or ""),
+        "email": str(profile.get("email") or ""),
+        "company": str(profile.get("company") or ctx.get("company_name") or ""),
+        "role": str(profile.get("role") or "Admin"),
+    }
 
 
 @app.patch("/api/settings/profile")
-async def api_settings_profile_patch(payload: dict) -> dict:
-    current = await api_settings_profile()
-    current.update(payload)
-    return current
+async def api_settings_profile_patch(payload: dict, request: Request) -> dict:
+    user_id = str(request.headers.get("x-user-id") or payload.get("user_id") or "local-user")
+
+    # Load existing context (Firestore preferred, then SQLite) and merge.
+    fs = read_context(user_id)
+    ctx: dict[str, Any] = {}
+    if isinstance(fs, dict) and fs:
+        ctx = dict(fs)
+    else:
+        row = get_context(user_id) or {}
+        try:
+            ctx = json.loads(row.get("payload_json") or "{}") if isinstance(row, dict) else {}
+        except Exception:
+            ctx = {}
+
+    profile = ctx.get("operator_profile") if isinstance(ctx.get("operator_profile"), dict) else {}
+    for key in ("name", "email", "company", "role"):
+        if key in payload and payload.get(key) is not None:
+            profile[key] = payload.get(key)
+    ctx["operator_profile"] = profile
+    ctx["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Persist (SQLite always, Firestore if enabled).
+    write_context(user_id, ctx)
+    add_audit("settings_profile_update", user_id)
+    return await api_settings_profile(request)
 
 
 @app.get("/api/settings/billing")
@@ -765,3 +1052,62 @@ async def api_settings_billing() -> dict:
         "suppliersUsed": suppliers_used,
         "suppliersLimit": max(200, suppliers_used),
     }
+
+
+@app.post("/api/onboarding/complete")
+async def api_onboarding_complete(payload: OnboardingRequest) -> dict:
+    # Local/demo-friendly endpoint (frontend does not send auth headers yet).
+    return await onboarding_complete(payload, {"sub": payload.user_id, "source": "bypass"})
+
+
+@app.get("/api/contexts/{user_id}")
+async def api_context_get(user_id: str) -> dict:
+    # Prefer Firestore if enabled; fallback to SQLite.
+    fs = read_context(user_id)
+    if isinstance(fs, dict) and fs:
+        context = dict(fs)
+        context.pop("user_id", None)
+        context.pop("workflow_id", None)
+        updated = str(context.get("updated_at") or "")
+        return {"user_id": user_id, "updated_at": updated, "context": context}
+
+    row = get_context(user_id)
+    if not row:
+        # Return empty context instead of 404 so frontend workflows can still run in demo mode.
+        return {"user_id": user_id, "updated_at": None, "context": {}}
+    try:
+        payload = json.loads(row.get("payload_json") or "{}")
+    except Exception:
+        payload = {}
+    return {"user_id": row.get("user_id"), "updated_at": row.get("updated_at"), "context": payload}
+
+
+@app.get("/api/onboarding/status/{user_id}")
+async def api_onboarding_status(user_id: str) -> dict:
+    fs = read_context(user_id)
+    payload: dict = {}
+    updated_at = None
+    if isinstance(fs, dict) and fs:
+        payload = dict(fs)
+        payload.pop("user_id", None)
+        updated_at = payload.get("updated_at")
+    else:
+        row = get_context(user_id)
+        if row:
+            updated_at = row.get("updated_at")
+            try:
+                payload = json.loads(row.get("payload_json") or "{}")
+            except Exception:
+                payload = {}
+
+    suppliers = payload.get("suppliers") if isinstance(payload, dict) else None
+    nodes = payload.get("logistics_nodes") if isinstance(payload, dict) else None
+    complete = (
+        bool(payload)
+        and isinstance(suppliers, list)
+        and len(suppliers) > 0
+        and isinstance(nodes, list)
+        and len(nodes) > 0
+        and bool(payload.get("company_name"))
+    )
+    return {"user_id": user_id, "complete": complete, "updated_at": updated_at}

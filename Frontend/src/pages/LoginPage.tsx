@@ -1,11 +1,41 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
+import { api } from "@/lib/api";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error("Email and password are required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await api.auth.login({ email: email.trim(), password });
+      localStorage.setItem("access_token", res.access_token);
+      localStorage.setItem("user_id", res.user_id);
+      toast.success("Signed in.");
+      try {
+        const status = await api.onboarding.status(res.user_id);
+        navigate(status.complete ? "/dashboard" : "/onboarding");
+      } catch {
+        navigate("/onboarding");
+      }
+    } catch {
+      toast.error("Sign in failed. Check your credentials.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -55,7 +85,7 @@ const LoginPage = () => {
           <h2 className="font-headline text-headline-md font-bold mb-2">Welcome back</h2>
           <p className="text-body-md text-secondary mb-8">Sign in to your Praecantator workspace</p>
 
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-6">
             <div>
               <label className="text-label-sm uppercase tracking-widest text-secondary block mb-2">Email</label>
               <input
@@ -97,9 +127,10 @@ const LoginPage = () => {
 
             <button
               type="submit"
+              disabled={submitting}
               className="w-full bg-foreground text-background py-3 rounded-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
             >
-              Sign In <span>→</span>
+              {submitting ? "Signing in…" : <>Sign In <span>→</span></>}
             </button>
           </form>
 

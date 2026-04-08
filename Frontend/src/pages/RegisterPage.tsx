@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/sonner";
+import { api } from "@/lib/api";
 
 const RegisterPage = () => {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     fullName: "", company: "", email: "", password: "", confirmPassword: "", agreed: false,
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const getStrength = (pw: string) => {
     if (pw.length < 6) return { label: "Weak", color: "bg-sentinel", width: "w-1/3" };
@@ -12,6 +17,36 @@ const RegisterPage = () => {
     return { label: "Strong", color: "bg-green-500", width: "w-full" };
   };
   const strength = getStrength(form.password);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.agreed) {
+      toast.error("Please accept the Service Protocols to continue.");
+      return;
+    }
+    if (!form.email || !form.password) {
+      toast.error("Email and password are required.");
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.auth.register({
+        email: form.email.trim(),
+        password: form.password,
+        company_name: form.company,
+      });
+      toast.success("Account created. Please sign in.");
+      navigate("/login");
+    } catch (err) {
+      toast.error("Registration failed. Email may already be registered.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -57,7 +92,7 @@ const RegisterPage = () => {
           <h2 className="font-headline text-headline-md font-bold mb-2">Create your workspace</h2>
           <p className="text-body-md text-secondary mb-8">Start protecting your supply chain in 15 minutes</p>
 
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
+          <form onSubmit={onSubmit} className="space-y-5">
             {[
               { label: "Full Name", key: "fullName" as const, type: "text", placeholder: "Johnathan Sterling" },
               { label: "Company Name", key: "company" as const, type: "text", placeholder: "Sterling Logistics Corp" },
@@ -123,9 +158,10 @@ const RegisterPage = () => {
 
             <button
               type="submit"
-              className="w-full bg-foreground text-background py-3 rounded-sm font-medium uppercase tracking-widest hover:opacity-90 transition-opacity"
+              disabled={submitting}
+              className="w-full bg-foreground text-background py-3 rounded-sm font-medium uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Create Account
+              {submitting ? "Creating…" : "Create Account"}
             </button>
           </form>
 

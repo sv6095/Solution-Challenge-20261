@@ -1,10 +1,30 @@
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useExposureSummary, useExposureSuppliers } from "@/hooks/use-dashboard";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api";
 
 
 const ExposureScores = () => {
   const { data: summary, isLoading: sLoading } = useExposureSummary();
   const { data: suppliers, isLoading: suppLoading } = useExposureSuppliers();
+  const [context, setContext] = useState<Record<string, any> | null>(null);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("user_id") || "local-user";
+    api.contexts
+      .get(userId)
+      .then((res) => setContext(res.context as any))
+      .catch(() => setContext(null));
+  }, []);
+
+  const logisticsNodes = useMemo(() => (context?.logistics_nodes as any[]) || [], [context]);
+  const avgSafetyStock = useMemo(() => {
+    const vals = logisticsNodes
+      .map((n) => Number(n.safety_stock_days))
+      .filter((v) => Number.isFinite(v) && v > 0);
+    if (!vals.length) return 7;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }, [logisticsNodes]);
 
   return (
     <div>
@@ -53,11 +73,13 @@ const ExposureScores = () => {
 
       {/* Table */}
       <div className="surface-container-high rounded-lg p-6">
-        <div className="grid grid-cols-7 gap-2 text-label-sm text-secondary uppercase tracking-widest mb-4 px-2">
+        <div className="grid grid-cols-10 gap-2 text-label-sm text-secondary uppercase tracking-widest mb-4 px-2">
           <span className="col-span-2">Supplier Node</span>
           <span>Tier</span>
           <span>Risk Category</span>
           <span>Exposure Score</span>
+          <span>Exposure USD</span>
+          <span>Days to stockout</span>
           <span>Trend</span>
           <span>Status</span>
         </div>
@@ -68,7 +90,7 @@ const ExposureScores = () => {
           <p className="text-body-md text-secondary text-center py-12">No supplier data available.</p>
         ) : (
           suppliers?.map((s) => (
-            <div key={s.id} className="grid grid-cols-7 gap-2 items-center px-2 py-4 hover:bg-surface-highest/30 rounded-sm transition-colors">
+            <div key={s.id} className="grid grid-cols-10 gap-2 items-center px-2 py-4 hover:bg-surface-highest/30 rounded-sm transition-colors">
               <div className="col-span-2">
                 <p className="font-headline font-bold text-sm">{s.name}</p>
                 <p className="text-label-sm text-secondary">{s.country}</p>
@@ -85,6 +107,12 @@ const ExposureScores = () => {
                 </div>
                 <span className="font-headline text-sm font-bold">{s.exposureScore.toFixed(1)}</span>
               </div>
+              <span className="text-body-md text-secondary">
+                ${Math.round((s.exposureScore / 100) * 250000).toLocaleString()}
+              </span>
+              <span className="text-body-md text-secondary">
+                {Math.max(0, Math.round(avgSafetyStock - (s.exposureScore / 25)))} days
+              </span>
               <span className="text-body-md text-center">
                 {s.trend === "up" ? "↑" : s.trend === "down" ? "↓" : "→"}
               </span>
@@ -104,8 +132,7 @@ const ExposureScores = () => {
       <div className="surface-container-high rounded-lg p-6 mt-4">
         <h3 className="font-headline font-bold text-sm uppercase tracking-widest mb-2">Score Methodology</h3>
         <p className="text-body-md text-secondary">
-          Score = weighted sum of: Proximity to event (40%) + Supplier tier criticality (30%) + Event severity (30%).
-          Recalculated every 15 minutes using Vertex AI.
+          Score combines proximity, tier criticality, and event severity. Exposure USD and stockout urgency use onboarding defaults (throughput + safety stock) when available.
         </p>
       </div>
     </div>

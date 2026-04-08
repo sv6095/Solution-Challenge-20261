@@ -7,6 +7,10 @@ type HeatPoint = {
   lat?: number;
   lng?: number;
   severity_score?: number;
+  id?: string;
+  title?: string;
+  description?: string;
+  severity?: string;
 };
 
 type Props = {
@@ -17,6 +21,7 @@ type Props = {
     lng?: number;
     score?: number;
   }>;
+  onSelectRisk?: (risk: HeatPoint) => void;
 };
 
 const HEATMAP_GRADIENT_COLORS = [
@@ -30,9 +35,11 @@ const HEATMAP_GRADIENT_COLORS = [
 function HeatmapLayers({
   data,
   criticalNodes,
+  onSelectRisk,
 }: {
   data: HeatPoint[];
   criticalNodes: Array<{ lat?: number; lng?: number; score?: number }>;
+  onSelectRisk?: (risk: HeatPoint) => void;
 }) {
   const { map, isLoaded } = useMap();
   const id = useId();
@@ -50,8 +57,12 @@ function HeatmapLayers({
           type: "Feature",
           properties: {
             intensity: Number(p.severity_score) || 25,
-            title: `Risk signal #${idx + 1}`,
-            description: `Estimated disruption intensity ${(Number(p.severity_score) || 25).toFixed(1)} / 100`,
+            id: p.id || `risk_${idx + 1}`,
+            title: p.title || `Risk signal #${idx + 1}`,
+            description: p.description || `Estimated disruption intensity ${(Number(p.severity_score) || 25).toFixed(1)} / 100`,
+            severity: p.severity || "",
+            lat: Number(p.lat),
+            lng: Number(p.lng),
           },
           geometry: { type: "Point", coordinates: [Number(p.lng), Number(p.lat)] },
         })),
@@ -149,13 +160,24 @@ function HeatmapLayers({
       if (!feature) return;
       const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
       const intensity = Number(feature.properties?.intensity || 0);
+      if (onSelectRisk) {
+        onSelectRisk({
+          id: String(feature.properties?.id || ""),
+          title: String(feature.properties?.title || ""),
+          description: String(feature.properties?.description || ""),
+          severity: String(feature.properties?.severity || ""),
+          lat: Number(feature.properties?.lat),
+          lng: Number(feature.properties?.lng),
+          severity_score: intensity,
+        });
+      }
       infoPopup
         .setLngLat(coords)
         .setHTML(
-          `<div style="font-size:12px;line-height:1.35">
-            <div style="font-weight:700;margin-bottom:4px">${String(feature.properties?.title || "Risk signal")}</div>
-            <div>${String(feature.properties?.description || "")}</div>
-            <div style="margin-top:4px;color:#9ca3af">Severity score: ${intensity.toFixed(1)}</div>
+          `<div style="font-size:12px;line-height:1.35;color:#e5e7eb;background:rgba(15,15,20,0.92);border:1px solid rgba(255,255,255,0.10);border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,0.45);max-width:260px">
+            <div style="font-weight:700;margin-bottom:4px;color:#ffffff">${String(feature.properties?.title || "Risk signal")}</div>
+            <div style="color:#e5e7eb">${String(feature.properties?.description || "")}</div>
+            <div style="margin-top:6px;color:#cbd5e1">Severity score: ${intensity.toFixed(1)}</div>
           </div>`,
         )
         .addTo(map);
@@ -189,7 +211,7 @@ function HeatmapLayers({
   return null;
 }
 
-export function Heatmap({ data = [], intensity = "severity_score", criticalNodes = [] }: Props) {
+export function Heatmap({ data = [], intensity = "severity_score", criticalNodes = [], onSelectRisk }: Props) {
   const validPoints = data.filter((p) => p.lat !== undefined && p.lng !== undefined);
   const avg = validPoints.length > 0 ? validPoints.reduce((acc, p) => acc + (Number(p.severity_score) || 0), 0) / validPoints.length : 0;
   const fallback = criticalNodes.find((n) => n.lat !== undefined && n.lng !== undefined);
@@ -206,7 +228,7 @@ export function Heatmap({ data = [], intensity = "severity_score", criticalNodes
       </div>
       <Map center={center} zoom={3.2} projection={{ type: "globe" }}>
         <MapControls showZoom />
-        <HeatmapLayers data={validPoints} criticalNodes={criticalNodes} />
+        <HeatmapLayers data={validPoints} criticalNodes={criticalNodes} onSelectRisk={onSelectRisk} />
       </Map>
     </div>
   );

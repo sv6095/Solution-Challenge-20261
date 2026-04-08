@@ -9,7 +9,6 @@ import OnboardingPage from "./pages/OnboardingPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
 import RiskMap from "./pages/dashboard/RiskMap";
-import WorkflowEngine from "./pages/dashboard/WorkflowEngine";
 import ExposureScores from "./pages/dashboard/ExposureScores";
 import RouteIntelligence from "./pages/dashboard/RouteIntelligence";
 import RFQManager from "./pages/dashboard/RFQManager";
@@ -33,7 +32,6 @@ const App = () => (
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardHome />} />
             <Route path="map" element={<RiskMap />} />
-            <Route path="workflow" element={<WorkflowEngine />} />
             <Route path="exposure" element={<ExposureScores />} />
             <Route path="routes" element={<RouteIntelligence />} />
             <Route path="rfq" element={<RFQManager />} />

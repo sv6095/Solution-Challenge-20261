@@ -67,6 +67,38 @@ export const useCreateRFQ = () => {
   });
 };
 
+export const useUpdateRFQStatus = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => api.rfq.updateStatus(id, status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["rfq"] }),
+  });
+};
+
+export const useRFQThread = (rfqId?: string | null) =>
+  useQuery({
+    queryKey: ["rfq", "thread", rfqId],
+    queryFn: () => api.rfq.thread(rfqId as string),
+    enabled: !!rfqId,
+    refetchInterval: FIFTEEN_MINUTES_MS,
+  });
+
+export const useAddRFQThreadMessage = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { id: string; direction: "outbound" | "inbound" | "note"; sender?: string; body: string }) =>
+      api.rfq.addThreadMessage(payload.id, { direction: payload.direction, sender: payload.sender, body: payload.body }),
+    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["rfq", "thread", vars.id] }),
+  });
+};
+
+/* ─── Workflows (audit reports) ─────────────────────────────── */
+export const useWorkflowReports = () =>
+  useQuery({ queryKey: ["workflows"], queryFn: api.workflows.list, refetchInterval: FIFTEEN_MINUTES_MS });
+
+export const useComplianceSummary = () =>
+  useQuery({ queryKey: ["audit", "compliance"], queryFn: api.compliance.summary, refetchInterval: FIFTEEN_MINUTES_MS });
+
 /* ─── Exposure Scores ────────────────────────────────────────── */
 export const useExposureSummary = () =>
   useQuery({ queryKey: ["exposure", "summary"], queryFn: api.exposure.summary, refetchInterval: FIFTEEN_MINUTES_MS });

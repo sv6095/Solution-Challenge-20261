@@ -53,10 +53,29 @@ def init_local_store() -> None:
             CREATE TABLE IF NOT EXISTS rfq_events (
                 rfq_id TEXT PRIMARY KEY,
                 user_id TEXT,
+                workflow_id TEXT,
                 recipient TEXT NOT NULL,
                 subject TEXT NOT NULL,
                 body TEXT NOT NULL,
                 status TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        # Backwards-compatible migration (older DBs won't have workflow_id)
+        try:
+            con.execute("ALTER TABLE rfq_events ADD COLUMN workflow_id TEXT")
+        except Exception:
+            pass
+
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS rfq_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                rfq_id TEXT NOT NULL,
+                direction TEXT NOT NULL, -- "outbound" | "inbound" | "note"
+                sender TEXT,
+                body TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )
             """
@@ -87,6 +106,15 @@ def init_local_store() -> None:
                 action TEXT NOT NULL,
                 payload TEXT,
                 created_at TEXT NOT NULL
+            )
+            """
+        )
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workflow_reports (
+                workflow_id TEXT PRIMARY KEY,
+                payload_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
             )
             """
         )
@@ -137,6 +165,48 @@ def list_audit(limit: int = 50) -> list[dict]:
         )
         rows = cur.fetchall()
     return [{"id": row[0], "action": row[1], "payload": row[2], "timestamp": row[3]} for row in rows]
+
+
+def get_audit(audit_id: int) -> dict | None:
+    with _conn() as con:
+        cur = con.execute("SELECT id, action, payload, created_at FROM audit_log WHERE id = ?", (audit_id,))
+        row = cur.fetchone()
+    if not row:
+        return None
+    return {"id": row[0], "action": row[1], "payload": row[2], "timestamp": row[3]}
+
+
+def upsert_workflow_report(workflow_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    updated_at = datetime.now(timezone.utc).isoformat()
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT INTO workflow_reports(workflow_id, payload_json, updated_at)
+            VALUES(?, ?, ?)
+            ON CONFLICT(workflow_id) DO UPDATE SET
+                payload_json=excluded.payload_json,
+                updated_at=excluded.updated_at
+            """,
+            (workflow_id, json.dumps(payload), updated_at),
+        )
+    return {"workflow_id": workflow_id, "updated_at": updated_at}
+
+
+def get_workflow_report(workflow_id: str) -> dict[str, Any] | None:
+    with _conn() as con:
+        cur = con.execute("SELECT workflow_id, payload_json, updated_at FROM workflow_reports WHERE workflow_id = ?", (workflow_id,))
+        row = cur.fetchone()
+    if not row:
+        return None
+    try:
+        data = json.loads(row[1] or "{}")
+        if not isinstance(data, dict):
+            data = {}
+    except Exception:
+        data = {}
+    data.setdefault("workflow_id", row[0])
+    data.setdefault("updated_at", row[2])
+    return data
 
 
 def create_user(user_id: str, email: str, password_hash: str, company_name: str = "") -> dict:
@@ -259,10 +329,31 @@ def create_rfq_event(rfq_id: str, user_id: str, recipient: str, subject: str, bo
     with _conn() as con:
         con.execute(
             """
-            INSERT INTO rfq_events(rfq_id, user_id, recipient, subject, body, status, created_at)
-            VALUES(?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO rfq_events(rfq_id, user_id, workflow_id, recipient, subject, body, status, created_at)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (rfq_id, user_id, recipient, subject, body, status, created_at),
+            (rfq_id, user_id, None, recipient, subject, body, status, created_at),
+        )
+    return {"rfq_id": rfq_id, "status": status, "created_at": created_at}
+
+
+def create_rfq_event_linked(
+    rfq_id: str,
+    user_id: str,
+    workflow_id: str | None,
+    recipient: str,
+    subject: str,
+    body: str,
+    status: str,
+) -> dict:
+    created_at = datetime.now(timezone.utc).isoformat()
+    with _conn() as con:
+        con.execute(
+            """
+            INSERT INTO rfq_events(rfq_id, user_id, workflow_id, recipient, subject, body, status, created_at)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (rfq_id, user_id, workflow_id, recipient, subject, body, status, created_at),
         )
     return {"rfq_id": rfq_id, "status": status, "created_at": created_at}
 
@@ -271,7 +362,7 @@ def list_rfq_events(limit: int = 50) -> list[dict]:
     with _conn() as con:
         with closing(
             con.execute(
-                "SELECT rfq_id, user_id, recipient, subject, body, status, created_at FROM rfq_events ORDER BY created_at DESC LIMIT ?",
+                "SELECT rfq_id, user_id, workflow_id, recipient, subject, body, status, created_at FROM rfq_events ORDER BY created_at DESC LIMIT ?",
                 (limit,),
             )
         ) as cur:
@@ -280,11 +371,70 @@ def list_rfq_events(limit: int = 50) -> list[dict]:
         {
             "rfq_id": row[0],
             "user_id": row[1],
-            "recipient": row[2],
-            "subject": row[3],
-            "body": row[4],
-            "status": row[5],
-            "created_at": row[6],
+            "workflow_id": row[2],
+            "recipient": row[3],
+            "subject": row[4],
+            "body": row[5],
+            "status": row[6],
+            "created_at": row[7],
         }
         for row in rows
     ]
+
+
+def update_rfq_status(rfq_id: str, status: str) -> dict[str, Any] | None:
+    with _conn() as con:
+        cur = con.execute("UPDATE rfq_events SET status = ? WHERE rfq_id = ?", (status, rfq_id))
+        if (cur.rowcount or 0) <= 0:
+            return None
+    return {"rfq_id": rfq_id, "status": status}
+
+
+def add_rfq_message(rfq_id: str, direction: str, sender: str | None, body: str) -> dict[str, Any]:
+    created_at = datetime.now(timezone.utc).isoformat()
+    with _conn() as con:
+        con.execute(
+            "INSERT INTO rfq_messages(rfq_id, direction, sender, body, created_at) VALUES(?, ?, ?, ?, ?)",
+            (rfq_id, direction, sender, body, created_at),
+        )
+    return {"rfq_id": rfq_id, "direction": direction, "sender": sender, "body": body, "created_at": created_at}
+
+
+def list_rfq_messages(rfq_id: str, limit: int = 50) -> list[dict[str, Any]]:
+    with _conn() as con:
+        cur = con.execute(
+            "SELECT id, rfq_id, direction, sender, body, created_at FROM rfq_messages WHERE rfq_id = ? ORDER BY id DESC LIMIT ?",
+            (rfq_id, limit),
+        )
+        rows = cur.fetchall()
+    items = [
+        {"id": r[0], "rfq_id": r[1], "direction": r[2], "sender": r[3], "body": r[4], "created_at": r[5]}
+        for r in rows
+    ]
+    return list(reversed(items))
+
+
+def list_workflow_reports(limit: int = 100) -> list[dict[str, Any]]:
+    with _conn() as con:
+        cur = con.execute(
+            "SELECT workflow_id, payload_json, updated_at FROM workflow_reports ORDER BY updated_at DESC LIMIT ?",
+            (limit,),
+        )
+        rows = cur.fetchall()
+    items: list[dict[str, Any]] = []
+    for (workflow_id, payload_json, updated_at) in rows:
+        try:
+            payload = json.loads(payload_json or "{}")
+            if not isinstance(payload, dict):
+                payload = {}
+        except Exception:
+            payload = {}
+        summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+        items.append(
+            {
+                "workflow_id": workflow_id,
+                "updated_at": updated_at,
+                "summary": summary,
+            }
+        )
+    return items

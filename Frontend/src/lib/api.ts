@@ -6,8 +6,15 @@
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const userId = localStorage.getItem("user_id") || "local-user";
+  const token = localStorage.getItem("access_token") || "";
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-User-Id": userId,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers || {}),
+    },
     ...options,
   });
   if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
@@ -134,6 +141,19 @@ export interface RFQ {
   eventTrigger: string;
   dateSent: string;
   status: "Draft" | "Sent" | "Responded" | "Closed";
+  workflowId?: string | null;
+  body?: string;
+}
+
+export type RFQStatus = "Draft" | "Pending Approval" | "Sent" | "Responded" | "Closed";
+
+export interface RFQThreadMessage {
+  id: number;
+  rfq_id: string;
+  direction: "outbound" | "inbound" | "note";
+  sender?: string | null;
+  body: string;
+  created_at: string;
 }
 
 export interface UserProfile {
@@ -176,9 +196,83 @@ export interface NetworkGraphResponse {
   routes: NetworkRoute[];
 }
 
+export interface WorkflowAnalysisResponse {
+  provider: "gemini" | "groq" | "local";
+  analysis: string;
+}
+
+export interface WorkflowReportUpsertRequest {
+  workflow_id: string;
+  stage: "detect" | "assess" | "decide" | "act" | "audit";
+  payload: Record<string, unknown>;
+}
+
+export interface AuthRegisterRequest {
+  email: string;
+  password: string;
+  company_name?: string;
+}
+
+export interface AuthRegisterResponse {
+  user_id: string;
+  email: string;
+  company_name: string;
+}
+
+export interface AuthLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthLoginResponse {
+  user_id: string;
+  access_token: string;
+  refresh_token: string;
+}
+
+export interface OnboardingCompleteRequest {
+  user_id: string;
+  company_name: string;
+  industry: string;
+  region: string;
+  logistics_nodes: Record<string, unknown>[];
+  suppliers: Record<string, unknown>[];
+  backup_suppliers: Record<string, unknown>[];
+  alert_threshold: number;
+  transport_preferences: { sea: boolean; air: boolean; land: boolean };
+  gmail_oauth_token?: string | null;
+  slack_webhook?: string | null;
+}
+
+export interface OnboardingStatusResponse {
+  user_id: string;
+  complete: boolean;
+  updated_at?: string;
+}
+
+export interface WorkflowReportSummary {
+  workflow_id: string;
+  updated_at: string;
+  summary: Record<string, unknown>;
+}
+
 /* ─── Endpoints ─────────────────────────────────────────────── */
 
 export const api = {
+  auth: {
+    register: (payload: AuthRegisterRequest) =>
+      request<AuthRegisterResponse>("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+    login: (payload: AuthLoginRequest) =>
+      request<AuthLoginResponse>("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+  },
+  onboarding: {
+    complete: (payload: OnboardingCompleteRequest) =>
+      request<{ status: string; user_id: string; updated_at?: string }>("/onboarding/complete", { method: "POST", body: JSON.stringify(payload) }),
+    status: (userId: string) => request<OnboardingStatusResponse>(`/onboarding/status/${encodeURIComponent(userId)}`),
+  },
+  contexts: {
+    get: (userId: string) => request<{ user_id: string; updated_at?: string; context: Record<string, unknown> }>(`/contexts/${encodeURIComponent(userId)}`),
+  },
   dashboard: {
     kpis: () => request<KpiSummary>("/dashboard/kpis"),
     events: () => request<RiskEvent[]>("/dashboard/events"),
@@ -226,6 +320,13 @@ export const api = {
     exportPdf: (id: string) => `${BASE}/audit/${id}/pdf`,
     exportAll: () => `${BASE}/audit/export`,
   },
+  workflow: {
+    analyze: (payload: { event: Record<string, unknown>; suppliers: Record<string, unknown>[]; assessment?: Record<string, unknown> }) =>
+      request<WorkflowAnalysisResponse>("/workflow/analyze", { method: "POST", body: JSON.stringify(payload) }),
+    upsertReportStage: (payload: WorkflowReportUpsertRequest) =>
+      request<{ status: string; workflow_id: string; stage: string }>("/workflow/report", { method: "POST", body: JSON.stringify(payload) }),
+    reportPdfUrl: (workflowId: string) => `${BASE}/workflow/report/${workflowId}/pdf`,
+  },
   rfq: {
     list: (status?: string) => {
       const q = status ? `?status=${status}` : "";
@@ -233,6 +334,19 @@ export const api = {
     },
     create: (data: Partial<RFQ>) =>
       request<RFQ>("/rfq", { method: "POST", body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string) =>
+      request<{ id: string; status: string }>(`/rfq/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    thread: (id: string) => request<{ rfq_id: string; messages: RFQThreadMessage[] }>(`/rfq/${encodeURIComponent(id)}/thread`),
+    addThreadMessage: (id: string, payload: { direction: "outbound" | "inbound" | "note"; sender?: string; body: string }) =>
+      request<{ status: string; message: RFQThreadMessage }>(`/rfq/${encodeURIComponent(id)}/thread`, { method: "POST", body: JSON.stringify(payload) }),
+  },
+  workflows: {
+    list: () => request<WorkflowReportSummary[]>("/workflows"),
+    reportPdfUrl: (workflowId: string) => `${BASE}/workflow/report/${workflowId}/pdf`,
+    reportJson: (workflowId: string) => request<Record<string, unknown>>(`/workflow/report/${encodeURIComponent(workflowId)}`),
+  },
+  compliance: {
+    summary: () => request<{ total_workflows: number; avg_response_time_seconds: number; actions_breakdown: Record<string, number> }>("/audit/compliance"),
   },
   exposure: {
     summary: () => request<{ avgScore: number; criticalNodes: number; totalMonitored: number }>("/exposure/summary"),

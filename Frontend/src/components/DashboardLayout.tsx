@@ -7,12 +7,11 @@ import {
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { title: "Signal Monitor", icon: Radio, path: "/dashboard/signals" },
   { title: "Risk Map", icon: Globe, path: "/dashboard/map" },
-  { title: "Workflow Engine", icon: Workflow, path: "/dashboard/workflow" },
   { title: "Exposure Scores", icon: BarChart3, path: "/dashboard/exposure" },
   { title: "Route Intelligence", icon: Navigation, path: "/dashboard/routes" },
   { title: "RFQ Manager", icon: FileText, path: "/dashboard/rfq" },
-  { title: "Signal Monitor", icon: Radio, path: "/dashboard/signals" },
   { title: "Audit Log", icon: ClipboardList, path: "/dashboard/audit" },
   { title: "Settings", icon: Settings, path: "/dashboard/settings" },
 ];
