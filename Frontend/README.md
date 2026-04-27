@@ -11,7 +11,7 @@ The frontend is built for speed, precision, and reliable data visualization. It 
 - **Operational Nexus (Dashboard)**: Real-time monitoring of KPIs, active risk events, and high-priority exposure nodes.
 - **Risk Map**: A globe-projected intelligence interface using @mapcn/heatmap to visualize risk density (earthquakes, geopolitics, etc.) alongside supplier locations.
 - **Route Intelligence**: Dynamic corridor optimization using OSRM routing and MapCN tracking to monitor cargo in transit across Sea, Land, and Air.
-- **Workflow Engine**: Automated decision-support system for managing operational deltas and supply chain disruptions.
+- **Entity Manager (Onboarding)**: Facilitates staging massive CSV datasets natively against API validators identifying DUNS and geospatial overlaps securely prior to database commitment.
 - **RFQ Manager**: Integrated procurement and request-for-quote handling.
 - **Signal Monitor**: Real-time signal intelligence monitoring for supply chain anomalies.
 

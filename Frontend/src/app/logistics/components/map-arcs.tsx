@@ -85,7 +85,7 @@ export function MapArcs({ hubs, routes: arcRoutes }: MapArcsProps) {
         },
       };
     });
-    return { type: "FeatureCollection", features: features.filter((f) => (f.geometry.coordinates as number[][]).length > 1) };
+    return { type: "FeatureCollection", features: features.filter((f) => ((f.geometry as GeoJSON.LineString).coordinates).length > 1) };
   }, [arcRoutes, hubs]);
 
   const addLayer = useCallback(() => {
@@ -122,8 +122,7 @@ export function MapArcs({ hubs, routes: arcRoutes }: MapArcsProps) {
         // ignore
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isLoaded]);
+  }, [map, isLoaded, addLayer]);
 
   useEffect(() => {
     if (!map || !isLoaded) return;

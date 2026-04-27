@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from services.data_registry import registry
-from ml.xgboost_model import predict_cost_impact
+from ml.xgboost_model import predict_cost_impact_with_diagnostics
 
 
 @dataclass
@@ -32,7 +32,7 @@ def assess_event(workflow_id: str, event_type: str, severity: float, suppliers: 
         weighted += score
 
     supplier_factor = max(1.0, (weighted / 100.0) if suppliers else 1.0)
-    model_pred = predict_cost_impact(
+    model_pred = predict_cost_impact_with_diagnostics(
         event_type=event_type,
         country_stability_index=0.6,
         severity_score=float(severity),
@@ -40,9 +40,10 @@ def assess_event(workflow_id: str, event_type: str, severity: float, suppliers: 
         daily_revenue_loss=base / 8.0,
         expedited_shipping_cost_usd=base / 4.0,
     )
-    predicted = model_pred if model_pred is not None else base
+    predicted = float(model_pred.get("prediction")) if model_pred and model_pred.get("prediction") is not None else base
     exposure = round(predicted * max(0.2, sev) * supplier_factor, 2)
-    confidence = round(min(0.97, 0.55 + 0.35 * sev + min(0.07, len(suppliers) * 0.01)), 3)
+    model_r2 = float(model_pred.get("r2") or 0.0) if model_pred else 0.0
+    confidence = round(min(0.98, 0.48 + 0.28 * sev + min(0.08, len(suppliers) * 0.01) + max(0.0, model_r2) * 0.12), 3)
     days = max(1, int(round(1 + severity * 1.4)))
     return AssessmentResult(
         financial_exposure_usd=exposure,

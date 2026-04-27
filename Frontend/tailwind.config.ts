@@ -15,9 +15,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        headline: ["Space Grotesk", "sans-serif"],
-        body: ["Plus Jakarta Sans", "sans-serif"],
-        label: ["Plus Jakarta Sans", "sans-serif"],
+        headline: ['"Special Gothic Expanded One"', "sans-serif"],
+        body: ["Inter", "sans-serif"],
+        label: ["Inter", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -65,9 +65,7 @@ export default {
         },
         sentinel: {
           red: "hsl(var(--sentinel-red))",
-          glow: "hsl(var(--sentinel-glow))",
-          warm: "hsl(var(--sentinel-warm))",
-          tertiary: "hsl(var(--sentinel-tertiary))",
+          text: "hsl(var(--sentinel-text))",
         },
         surface: {
           DEFAULT: "hsl(var(--surface))",
@@ -79,10 +77,10 @@ export default {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-        xl: "0.5rem",
-        full: "0.75rem",
+        md: "calc(var(--radius) - 1px)",
+        sm: "calc(var(--radius) - 2px)",
+        xl: "4px",
+        full: "4px",
       },
       fontSize: {
         "display-lg": ["3.5rem", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
@@ -100,20 +98,10 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "pulse-glow": {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.5" },
-        },
-        "float": {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-10px)" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
-        "float": "float 6s ease-in-out infinite",
       },
     },
   },

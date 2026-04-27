@@ -38,6 +38,7 @@ const RegisterPage = () => {
         email: form.email.trim(),
         password: form.password,
         company_name: form.company,
+        full_name: form.fullName,
       });
       toast.success("Account created. Please sign in.");
       navigate("/login");
@@ -49,39 +50,26 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background font-headline">
       {/* Left branding */}
-      <div className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12 kinetic-gradient relative overflow-hidden">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-sentinel rounded-sm" />
+      <div className="hidden lg:flex lg:w-[45%] flex-col justify-between p-8 bg-sky-50 border-r border-sky-100 relative overflow-hidden">
+        <div className="flex items-center gap-3 text-slate-900">
+          <img src="/Praecantator.png" alt="Logo" className="w-10 h-10 object-contain" />
           <span className="font-headline text-xl font-bold">Praecantator</span>
         </div>
 
-        <div>
-          <h1 className="text-display-lg leading-tight mb-6">
+        <div className="-mt-8">
+          <h1 className="text-display-lg leading-tight mb-4 text-slate-900">
             Architecting <span className="text-sentinel">Kinetic Intelligence</span> for Global Trade.
           </h1>
-          <p className="text-body-md text-secondary max-w-md">
+          <p className="text-body-md text-slate-600 max-w-md">
             Praecantator provides an ironclad digital perimeter for your logistics network, utilizing real-time exposure scores and route intelligence.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="surface-container-high rounded-lg p-5">
-            <span className="text-label-sm text-sentinel uppercase tracking-widest">📡 Signal Monitoring</span>
-            <p className="font-headline text-3xl font-bold mt-2">99.98%</p>
-            <p className="text-label-sm text-secondary uppercase tracking-widest">Uptime Reliability</p>
-          </div>
-          <div className="surface-container-high rounded-lg p-5">
-            <span className="text-label-sm text-sentinel uppercase tracking-widest">🛡 Threat Mitigation</span>
-            <p className="font-headline text-3xl font-bold mt-2 text-sentinel">Active</p>
-            <p className="text-label-sm text-secondary uppercase tracking-widest">Global Sentinel Mode</p>
-          </div>
-        </div>
-
-        <div className="flex gap-6 text-label-sm text-secondary uppercase tracking-widest">
+        <div className="flex gap-6 text-label-sm text-slate-500 uppercase tracking-widest">
           <span>Precision Logic</span>
-          <span>Kinetic Fortress v1.0</span>
+          <span>Kinetic Fortress</span>
           <span>© 2026</span>
         </div>
       </div>
@@ -89,17 +77,17 @@ const RegisterPage = () => {
       {/* Right form */}
       <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
         <div className="w-full max-w-md">
-          <h2 className="font-headline text-headline-md font-bold mb-2">Create your workspace</h2>
-          <p className="text-body-md text-secondary mb-8">Start protecting your supply chain in 15 minutes</p>
+          <h2 className="font-headline text-headline-md font-bold text-slate-800 mb-1">Create your workspace</h2>
+          <p className="text-body-md text-slate-600 mb-5">Start protecting your supply chain in 15 minutes</p>
 
-          <form onSubmit={onSubmit} className="space-y-5">
+          <form onSubmit={onSubmit} className="space-y-3">
             {[
               { label: "Full Name", key: "fullName" as const, type: "text", placeholder: "Johnathan Sterling" },
               { label: "Company Name", key: "company" as const, type: "text", placeholder: "Sterling Logistics Corp" },
               { label: "Work Email", key: "email" as const, type: "email", placeholder: "j.sterling@praecantator.io" },
             ].map((field) => (
               <div key={field.key}>
-                <label className="text-label-sm uppercase tracking-widest text-secondary block mb-2">{field.label}</label>
+                <label className="text-label-sm uppercase tracking-widest text-slate-500 block mb-2">{field.label}</label>
                 <input
                   type={field.type}
                   value={form[field.key]}
@@ -111,7 +99,7 @@ const RegisterPage = () => {
             ))}
 
             <div>
-              <label className="text-label-sm uppercase tracking-widest text-secondary block mb-2">Password</label>
+              <label className="text-label-sm uppercase tracking-widest text-slate-500 block mb-2">Password</label>
               <input
                 type="password"
                 value={form.password}
@@ -132,7 +120,7 @@ const RegisterPage = () => {
             </div>
 
             <div>
-              <label className="text-label-sm uppercase tracking-widest text-secondary block mb-2">Confirm Password</label>
+              <label className="text-label-sm uppercase tracking-widest text-slate-500 block mb-2">Confirm Password</label>
               <input
                 type="password"
                 value={form.confirmPassword}
@@ -142,7 +130,7 @@ const RegisterPage = () => {
               />
             </div>
 
-            <label className="flex items-start gap-3 text-body-md text-secondary cursor-pointer">
+            <label className="flex items-start gap-3 text-body-md text-slate-600 cursor-pointer mt-1">
               <input
                 type="checkbox"
                 checked={form.agreed}
@@ -165,17 +153,17 @@ const RegisterPage = () => {
             </button>
           </form>
 
-          <div className="flex items-center gap-4 my-6">
+          <div className="flex items-center gap-4 my-5">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-label-sm text-secondary uppercase tracking-widest">Or authorize with</span>
+            <span className="text-label-sm text-slate-500 uppercase tracking-widest">Or authorize with</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          <button className="w-full glass-panel py-3 rounded-sm font-medium flex items-center justify-center gap-3 hover:bg-white/10 transition-colors uppercase tracking-widest">
+          <button className="w-full glass-panel py-3 rounded-sm font-medium flex items-center justify-center gap-3 hover:bg-slate-50 transition-colors uppercase tracking-widest">
             🔐 Enterprise SSO
           </button>
 
-          <p className="text-center text-body-md text-secondary mt-6">
+          <p className="text-center text-body-md text-slate-600 mt-5">
             Already part of the network?{" "}
             <Link to="/login" className="text-sentinel hover:underline">Sign In to Sentinel</Link>
           </p>

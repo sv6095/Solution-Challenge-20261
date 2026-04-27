@@ -51,6 +51,22 @@ export const useNewsSignals = () =>
 export const useDataSources = () =>
   useQuery({ queryKey: ["signals", "sources"], queryFn: api.signals.sources, refetchInterval: FIFTEEN_MINUTES_MS });
 
+export const useCategorizedSignals = () =>
+  useQuery({ queryKey: ["signals", "categorized"], queryFn: api.signals.categorized, refetchInterval: FIFTEEN_MINUTES_MS });
+
+export const useSentimentSignals = () =>
+  useQuery({ queryKey: ["signals", "sentiment"], queryFn: api.signals.sentiment, refetchInterval: FIFTEEN_MINUTES_MS });
+
+export const useRefreshSignals = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.signals.refresh,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["signals"] });
+    },
+  });
+};
+
 /* ─── Audit Log ──────────────────────────────────────────────── */
 export const useAuditLog = () =>
   useQuery({ queryKey: ["audit"], queryFn: api.audit.list, refetchInterval: FIFTEEN_MINUTES_MS });

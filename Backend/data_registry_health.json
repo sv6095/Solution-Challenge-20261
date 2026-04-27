@@ -1,0 +1,17 @@
+{
+  "ports_loaded": 3898,
+  "airports_loaded": 29305,
+  "lane_keys": [
+    "Atlantic",
+    "Commodity",
+    "Intra-Asia",
+    "Pacific",
+    "Suez"
+  ],
+  "event_types": [
+    "Geopolitical Conflict (Route Diversion)",
+    "Port Congestion",
+    "Severe Weather (Typhoon/Storm)",
+    "Unknown_Disruption"
+  ]
+}

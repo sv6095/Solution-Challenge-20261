@@ -28,11 +28,19 @@ def _secret() -> str:
     return os.getenv("JWT_SECRET", "change-me-in-prod")
 
 
-def mint_access_token(user_id: str, email: str) -> str:
-    ttl = int(os.getenv("JWT_ACCESS_TTL_MINUTES", "15"))
+def mint_access_token(
+    user_id: str,
+    email: str,
+    tenant_id: str | None = None,
+    role: str = "admin",
+    ttl_minutes: int | None = None,
+) -> str:
+    ttl = ttl_minutes if ttl_minutes is not None else int(os.getenv("JWT_ACCESS_TTL_MINUTES", "525600"))
     payload = {
         "sub": user_id,
         "email": email,
+        "tenant_id": tenant_id or user_id,
+        "role": role,
         "type": "access",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=ttl),
         "iat": datetime.now(timezone.utc),
@@ -41,7 +49,7 @@ def mint_access_token(user_id: str, email: str) -> str:
 
 
 def mint_refresh_token(user_id: str) -> str:
-    ttl_days = int(os.getenv("JWT_REFRESH_TTL_DAYS", "7"))
+    ttl_days = int(os.getenv("JWT_REFRESH_TTL_DAYS", "365"))
     payload = {
         "sub": user_id,
         "type": "refresh",

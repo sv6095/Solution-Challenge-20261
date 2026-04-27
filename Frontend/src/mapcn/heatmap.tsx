@@ -25,11 +25,11 @@ type Props = {
 };
 
 const HEATMAP_GRADIENT_COLORS = [
-  "#fff7bc",
-  "#fee391",
-  "#fec44f",
-  "#fe9929",
-  "#d7301f",
+  "rgba(220, 38, 38, 0)",    /* Transparent */
+  "rgba(220, 38, 38, 0.15)", /* Muted red */
+  "rgba(220, 38, 38, 0.4)",  /* Semi-transparent red */
+  "rgba(220, 38, 38, 0.7)",  /* Solid red */
+  "#DC2626",                 /* Pure red accent */
 ];
 
 function HeatmapLayers({
@@ -107,26 +107,24 @@ function HeatmapLayers({
         maxzoom: 8,
         paint: {
           "heatmap-weight": ["interpolate", ["linear"], ["get", "score"], 0, 0.05, 100, 1],
-          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 2, 0.6, 8, 1.4],
+          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 2, 0.5, 8, 1.2],
           "heatmap-color": [
             "interpolate",
             ["linear"],
             ["heatmap-density"],
             0,
-            "rgba(255,255,255,0)",
-            0.18,
-            HEATMAP_GRADIENT_COLORS[0],
-            0.38,
+            "rgba(220, 38, 38, 0)",
+            0.2,
             HEATMAP_GRADIENT_COLORS[1],
-            0.58,
+            0.4,
             HEATMAP_GRADIENT_COLORS[2],
-            0.78,
+            0.7,
             HEATMAP_GRADIENT_COLORS[3],
             1,
             HEATMAP_GRADIENT_COLORS[4],
           ],
-          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 2, 12, 8, 40],
-          "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.95, 8, 0.25],
+          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 2, 8, 8, 32],
+          "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.8, 8, 0.15],
         },
       });
     }
@@ -145,16 +143,16 @@ function HeatmapLayers({
         type: "circle",
         source: criticalSourceId,
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["get", "intensity"], 20, 6, 100, 12],
-          "circle-color": ["interpolate", ["linear"], ["get", "intensity"], 20, "#22c55e", 60, "#f59e0b", 100, "#ef4444"],
-          "circle-stroke-color": "rgba(255,255,255,0.95)",
-          "circle-stroke-width": 2,
-          "circle-opacity": 0.95,
+          "circle-radius": ["interpolate", ["linear"], ["get", "intensity"], 20, 5, 100, 10],
+          "circle-color": ["interpolate", ["linear"], ["get", "intensity"], 20, "#555555", 60, "#FFFFFF", 100, "#DC2626"],
+          "circle-stroke-color": "#000000",
+          "circle-stroke-width": 1,
+          "circle-opacity": 0.9,
         },
       });
     }
 
-    const infoPopup = new maplibregl.Popup({ closeButton: true, closeOnClick: true });
+    const infoPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: true });
     const onCriticalClick = (e: MapLibreGL.MapMouseEvent & { features?: MapLibreGL.MapGeoJSONFeature[] }) => {
       const feature = e.features?.[0];
       if (!feature) return;
@@ -174,10 +172,19 @@ function HeatmapLayers({
       infoPopup
         .setLngLat(coords)
         .setHTML(
-          `<div style="font-size:12px;line-height:1.35;color:#e5e7eb;background:rgba(15,15,20,0.92);border:1px solid rgba(255,255,255,0.10);border-radius:10px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,0.45);max-width:260px">
-            <div style="font-weight:700;margin-bottom:4px;color:#ffffff">${String(feature.properties?.title || "Risk signal")}</div>
-            <div style="color:#e5e7eb">${String(feature.properties?.description || "")}</div>
-            <div style="margin-top:6px;color:#cbd5e1">Severity score: ${intensity.toFixed(1)}</div>
+          `<div style="font-family:monospace;font-size:11px;line-height:1.5;color:#FFFFFF;background:#080808;border:1px solid #DC2626;padding:12px;max-width:240px;box-shadow:0 0 20px rgba(220,38,38,0.2)">
+            <div style="font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;color:#DC2626;border-bottom:1px solid #333;padding-bottom:4px">
+              [ANALYSIS_ID: ${String(feature.properties?.id || "N/A").toUpperCase()}]
+            </div>
+            <div style="font-weight:600;margin-bottom:6px;color:#FFF;text-transform:uppercase">${String(feature.properties?.title || "RISK SIGNAL")}</div>
+            <div style="color:#cbd5e1;margin-bottom:10px">${String(feature.properties?.description || "")}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;background:#111;padding:4px 8px;border:1px solid #222">
+              <span style="color:#94a3b8">INTENSITY</span>
+              <span style="color:#DC2626;font-weight:bold">${intensity.toFixed(1)} / 100</span>
+            </div>
+            <div style="margin-top:8px;text-align:right">
+              <span style="color:#DC2626;font-size:9px;animate:flicker 0.3s infinite opacity">● ACTIVE_MONITOR</span>
+            </div>
           </div>`,
         )
         .addTo(map);
@@ -206,14 +213,20 @@ function HeatmapLayers({
         // ignore
       }
     };
-  }, [criticalGeojson, criticalLayerId, criticalSourceId, heatLayerId, isLoaded, map, riskGeojson, sourceId]);
+  }, [criticalGeojson, criticalLayerId, criticalSourceId, heatLayerId, isLoaded, map, onSelectRisk, riskGeojson, sourceId]);
 
   return null;
 }
 
 export function Heatmap({ data = [], intensity = "severity_score", criticalNodes = [], onSelectRisk }: Props) {
   const validPoints = data.filter((p) => p.lat !== undefined && p.lng !== undefined);
-  const avg = validPoints.length > 0 ? validPoints.reduce((acc, p) => acc + (Number(p.severity_score) || 0), 0) / validPoints.length : 0;
+  const effectiveCriticalNodes = criticalNodes.length
+    ? criticalNodes
+    : validPoints.map((point) => ({
+        lat: point.lat,
+        lng: point.lng,
+        score: Number(point[intensity as keyof HeatPoint] ?? point.severity_score ?? 50),
+      }));
   const fallback = criticalNodes.find((n) => n.lat !== undefined && n.lng !== undefined);
   const center: [number, number] = validPoints.length > 0
     ? [Number(validPoints[0].lng), Number(validPoints[0].lat)]
@@ -222,14 +235,12 @@ export function Heatmap({ data = [], intensity = "severity_score", criticalNodes
       : [103.8198, 1.3521];
 
   return (
-    <div className="relative h-full w-full rounded-md border border-border overflow-hidden">
-      <div className="absolute left-3 top-3 z-10 rounded bg-background/85 px-2 py-1 text-xs text-secondary">
-        Risk Heatmap | Risks: {validPoints.length} | Critical Nodes: {criticalNodes.length} | Intensity: {intensity} | Avg: {avg.toFixed(1)}
-      </div>
+    <div className="relative h-full w-full border border-border overflow-hidden">
       <Map center={center} zoom={3.2} projection={{ type: "globe" }}>
         <MapControls showZoom />
-        <HeatmapLayers data={validPoints} criticalNodes={criticalNodes} onSelectRisk={onSelectRisk} />
+        <HeatmapLayers data={validPoints} criticalNodes={effectiveCriticalNodes} onSelectRisk={onSelectRisk} />
       </Map>
     </div>
   );
 }
+

@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -15,6 +16,7 @@ PORTS_PATH = DATASET_DIR / "ports.json"
 DISRUPTION_PATH = DATASET_DIR / "Global_Supply_Chain_Disruption.csv"
 PREDICTIVE_PATH = DATASET_DIR / "Predective_Forecasting.csv"
 AIRPORTS_PATH = DATASET_DIR / "airports.json"
+HEALTH_SNAPSHOT_PATH = ROOT / "data_registry_health.json"
 
 
 @dataclass(frozen=True)
@@ -138,4 +140,68 @@ def disruption_snapshot() -> dict[str, Any]:
         "lane_multipliers_loaded": len(registry.sea_lane_multiplier),
         "mode_baselines_loaded": len(registry.mode_cost_baseline),
         "assessment_events_loaded": len(registry.assessment_cost_by_event),
+    }
+
+
+def data_registry_health_report() -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    files = {
+        "ports": PORTS_PATH,
+        "airports": AIRPORTS_PATH,
+        "disruption": DISRUPTION_PATH,
+        "predictive": PREDICTIVE_PATH,
+    }
+    freshness: dict[str, Any] = {}
+    completeness = {
+        "ports_loaded": len(registry.ports),
+        "airports_loaded": len(registry.airports),
+        "lane_multipliers_loaded": len(registry.sea_lane_multiplier),
+        "mode_baselines_loaded": len(registry.mode_cost_baseline),
+        "assessment_events_loaded": len(registry.assessment_cost_by_event),
+    }
+    for name, path in files.items():
+        if not path.exists():
+            freshness[name] = {"exists": False, "age_hours": None}
+            continue
+        mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        age_hours = round((now - mtime).total_seconds() / 3600.0, 2)
+        freshness[name] = {"exists": True, "age_hours": age_hours, "updated_at": mtime.isoformat()}
+
+    current_signature = {
+        "ports_loaded": completeness["ports_loaded"],
+        "airports_loaded": completeness["airports_loaded"],
+        "lane_keys": sorted(list(registry.sea_lane_multiplier.keys()))[:20],
+        "event_types": sorted(list(registry.assessment_cost_by_event.keys()))[:20],
+    }
+    previous_signature: dict[str, Any] = {}
+    drift = {"status": "unknown", "changed_fields": []}
+    if HEALTH_SNAPSHOT_PATH.exists():
+        try:
+            previous_signature = json.loads(HEALTH_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+            if isinstance(previous_signature, dict):
+                for key, value in current_signature.items():
+                    if previous_signature.get(key) != value:
+                        drift["changed_fields"].append(key)
+                drift["status"] = "drift_detected" if drift["changed_fields"] else "stable"
+        except Exception:
+            drift["status"] = "unavailable"
+    else:
+        drift["status"] = "baseline_missing"
+
+    try:
+        HEALTH_SNAPSHOT_PATH.write_text(json.dumps(current_signature, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+    completeness_ok = all(v > 0 for v in completeness.values())
+    freshness_ok = all(
+        (not info.get("exists")) or (info.get("age_hours") is not None and float(info["age_hours"]) <= 24 * 30)
+        for info in freshness.values()
+    )
+
+    return {
+        "freshness": freshness,
+        "completeness": completeness,
+        "drift": drift,
+        "healthy": bool(completeness_ok and freshness_ok),
     }

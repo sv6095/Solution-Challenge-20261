@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import os
+import json
 from dataclasses import dataclass
 from typing import Any, Literal
 
-import httpx
+from services.llm_provider import chat_complete
 
 
 @dataclass
@@ -20,78 +20,9 @@ def _safe_truncate(value: str, limit: int = 6000) -> str:
     return v[: limit - 20].rstrip() + "\n\n[truncated]"
 
 
-async def _call_gemini(prompt: str) -> str:
-    """
-    Gemini 2.0 Flash via Google AI Studio Generative Language API.
-    Env var: GEMINI_API_KEY
-    """
-    api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
-    if not api_key:
-        raise RuntimeError("Missing GEMINI_API_KEY")
-
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-    payload = {
-        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.35, "maxOutputTokens": 850},
-    }
-    async with httpx.AsyncClient(timeout=25) as client:
-        res = await client.post(url, params={"key": api_key}, json=payload)
-        res.raise_for_status()
-        data = res.json()
-
-    candidates = data.get("candidates") or []
-    parts: list[str] = []
-    for c in candidates:
-        content = (c or {}).get("content") or {}
-        for p in (content.get("parts") or []):
-            if isinstance(p, dict) and isinstance(p.get("text"), str):
-                parts.append(p["text"])
-    text = "\n".join([p.strip() for p in parts if p and p.strip()]).strip()
-    if not text:
-        raise RuntimeError("Gemini returned empty text")
-    return text
-
-
-async def _call_groq(prompt: str) -> str:
-    """
-    Groq via OpenAI-compatible Chat Completions API.
-    Env var: GROQ_API_KEY
-    """
-    api_key = (os.getenv("GROQ_API_KEY") or "").strip()
-    if not api_key:
-        raise RuntimeError("Missing GROQ_API_KEY")
-
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    payload: dict[str, Any] = {
-        "model": os.getenv("GROQ_MODEL", "llama-3.1-70b-versatile"),
-        "temperature": 0.35,
-        "max_tokens": 850,
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a supply-chain crisis response analyst. Produce structured, decision-ready analysis.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-    }
-    async with httpx.AsyncClient(timeout=25) as client:
-        res = await client.post(url, headers={"Authorization": f"Bearer {api_key}"}, json=payload)
-        res.raise_for_status()
-        data = res.json()
-
-    choices = data.get("choices") or []
-    msg = (((choices[0] or {}).get("message") or {}).get("content") if choices else "") or ""
-    text = str(msg).strip()
-    if not text:
-        raise RuntimeError("Groq returned empty text")
-    return text
-
-
 def _local_analysis(event: dict, suppliers: list[dict], assessment: dict | None = None) -> str:
     title = str(event.get("title") or event.get("event_type") or "Disruption signal").strip()
     location = str(event.get("location") or event.get("region") or "Unknown region").strip()
-    severity = event.get("severity")
-    severity_score = event.get("severity_score")
     affected = suppliers[:8]
     affected_names = ", ".join([str(s.get("name") or "Supplier") for s in affected[:5]])
     exposure_usd = None
@@ -149,6 +80,7 @@ async def generate_workflow_analysis(
     event: dict,
     suppliers: list[dict],
     assessment: dict | None = None,
+    workflow_id: str | None = None,
 ) -> LLMResult:
     prompt = _safe_truncate(
         f"""
@@ -172,14 +104,49 @@ Assessment (if present):
         7000,
     )
 
-    # Primary: Gemini. Fallback: Groq. Final: local structured analysis.
-    try:
-        text = await _call_gemini(prompt)
-        return LLMResult(provider="gemini", text=text.strip())
-    except Exception:
-        try:
-            text = await _call_groq(prompt)
-            return LLMResult(provider="groq", text=text.strip())
-        except Exception:
-            return LLMResult(provider="local", text=_local_analysis(event, suppliers, assessment))
+    system = (
+        "You are SupplyShield's Assessment Agent. "
+        "Write decision-ready supply-chain analysis in clear sections. No fluff."
+    )
 
+    try:
+        text, used = await chat_complete(
+            prompt,
+            system=system,
+            max_tokens=850,
+            workflow_id=workflow_id,
+            agent_name="assessment_agent",
+        )
+        prov: Literal["gemini", "groq", "local"] = "gemini" if used == "gemini" else "groq"
+        return LLMResult(provider=prov, text=text.strip())
+    except Exception:
+        return LLMResult(provider="local", text=_local_analysis(event, suppliers, assessment))
+
+
+async def generate_appendix_nlp(report: dict) -> str:
+    """Executive summary: LLM via provider pattern, then template fallback."""
+    prompt = (
+        "Convert this raw JSON workflow snapshot into a formal, concise 3-paragraph executive audit summary. "
+        "Focus on the disruption event, the calculated financial exposure, and the final action taken. "
+        "No markdown formatting, just plain professional text. JSON:\n"
+        f"{json.dumps(report)[:4500]}"
+    )
+
+    try:
+        text, _used = await chat_complete(prompt, system="", max_tokens=600, workflow_id=None, agent_name=None)
+        if text.strip():
+            return text.strip()
+    except Exception:
+        pass
+
+    summary = report.get("summary", {})
+    act = report.get("act", {})
+    return (
+        f"This execution record details a critical supply chain disruption managed by the Praecantator Kinetic Fortress module. "
+        f"The platform registered a severe routing interruption triggering a fully coordinated reassessment protocol. "
+        f"Initial telemetry projected a maximum operational financial exposure of {summary.get('exposure_usd', 'Unknown')} USD, "
+        f"forcing immediate intervention.\n\n"
+        f"Following the automated risk-modeling sequence, the operator executed emergency contingency '{str(summary.get('action_taken', 'N/A')).upper()}'. "
+        f"The workflow achieved end-to-end resolution in {summary.get('response_time_seconds', 'N/A')} seconds. "
+        f"Additional telemetry indicated decisions were locked with cryptographic execution parameters: {act.get('details', 'No detailed context provided.')}"
+    )

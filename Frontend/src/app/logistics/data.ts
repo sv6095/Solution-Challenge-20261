@@ -199,13 +199,13 @@ export const routes: Route[] = [
 ];
 
 export const modeConfig = {
-  air: { color: "#3b82f6", label: "Air" },
-  ground: { color: "#22c55e", label: "Ground" },
+  air: { color: "#FFFFFF", label: "Air" },
+  ground: { color: "#888888", label: "Ground" },
 } as const;
 
 export const statusConfig = {
-  active: { color: "#10b981", label: "Active" },
-  delayed: { color: "#f59e0b", label: "Delayed" },
+  active: { color: "#FFFFFF", label: "Active" },
+  delayed: { color: "#DC2626", label: "Delayed" },
 } as const;
 
 export const regionLabels: Record<Hub["region"], string> = {

@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Special+Gothic+Expanded+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 @import "tailwindcss";
 
@@ -7,63 +8,172 @@
 
 @layer base {
   :root {
-    /* Sentinel Red Design System — "The Kinetic Fortress" */
-    --background: 240 15% 6%; /* #0e0e13 surface-container-lowest */
-    --foreground: 248 20% 90%; /* #e4e1e9 on-surface */
+    /* ── Praecantator Design System: Clean Light Theme (Image Reference) ── */
+    --background: 0 0% 98%;          /* Light grey/off-white background */
+    --foreground: 0 0% 10%;          /* Dark gray text */
 
-    --card: 240 10% 10%; /* #1b1b20 surface-container-low */
-    --card-foreground: 248 20% 90%;
+    --card: 0 0% 100%;               /* White cards */
+    --card-foreground: 0 0% 10%;
 
-    --popover: 240 12% 8%; /* #131318 surface */
-    --popover-foreground: 248 20% 90%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 12 100% 83%; /* #ffb4a8 */
-    --primary-foreground: 0 100% 20%; /* #690100 on-primary */
+    --primary: 0 0% 10%;             /* Black/Dark gray for buttons/primary */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 2% 77%; /* #c6c6c7 */
-    --secondary-foreground: 180 2% 19%; /* #2f3131 */
+    --secondary: 0 0% 96%;           /* Very light gray */
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 240 8% 13%; /* #1f1f25 surface-container */
-    --muted-foreground: 12 40% 81%; /* #ebbbb4 on-surface-variant */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 240 4% 21%; /* #35343a surface-container-highest */
-    --accent-foreground: 248 20% 90%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 100% 50%; /* #ff5540 primary-container */
-    --destructive-foreground: 0 100% 18%; /* #5c0000 */
+    --destructive: 0 84% 60%;        /* Red for critical */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 260 5% 17%; /* outline-variant at low opacity */
-    --input: 240 10% 10%;
-    --ring: 12 100% 83%;
+    --border: 0 0% 90%;              /* Light gray borders */
+    --input: 0 0% 90%;
+    --ring: 0 0% 80%;
 
-    --radius: 0.25rem;
+    --radius: 6px;
 
-    /* Sentinel Red custom tokens */
-    --surface: 240 12% 8%; /* #131318 */
-    --surface-low: 240 10% 10%; /* #1b1b20 */
-    --surface-high: 250 6% 17%; /* #2a292f */
-    --surface-highest: 248 4% 22%; /* #35343a */
-    --surface-bright: 240 4% 23%; /* #39383e */
+    /* Surface tokens */
+    --surface: 0 0% 100%;
+    --surface-low: 0 0% 98%;
+    --surface-high: 0 0% 96%;
+    --surface-highest: 0 0% 90%;
+    --surface-bright: 0 0% 100%;
 
-    --sentinel-red: 0 100% 50%; /* #FF0000 */
-    --sentinel-glow: 10 100% 63%; /* #ff5540 */
-    --sentinel-warm: 12 100% 83%; /* #ffb4a8 */
-    --sentinel-tertiary: 3 100% 66%; /* #ff5352 */
+    /* Red tokens */
+    --sentinel-red: 0 72% 51%;       /* Exact Red */
+    --sentinel-text: 0 72% 51%;
 
-    --on-surface: 248 20% 90%;
-    --on-surface-variant: 12 40% 81%;
+    --on-surface: 0 0% 10%;
+    --on-surface-variant: 0 0% 45%;
 
-    --sidebar-background: 240 12% 8%;
-    --sidebar-foreground: 248 20% 90%;
-    --sidebar-primary: 12 100% 83%;
-    --sidebar-primary-foreground: 0 100% 20%;
-    --sidebar-accent: 240 10% 10%;
-    --sidebar-accent-foreground: 248 20% 90%;
-    --sidebar-border: 260 5% 17%;
-    --sidebar-ring: 12 100% 83%;
+    /* Tertiary (dim text) */
+    --tertiary: 0 0% 45%;
+
+    --sidebar-background: 0 0% 11%;  /* #1c1c1c */
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 11%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 0% 100%;
+
+    /* ── WorldMonitor Tactical Tokens (Light Mode) ── */
+    /* Exact worldmonitor data-theme="light" token map */
+    --bg: #f8f9fa;
+    --bg-secondary: #f0f1f3;
+    --panel-bg: #ffffff;
+    --panel-border: #d4d4d4;
+    --map-bg: #e8f0f8;
+    --map-grid: #b0c8d8;
+    --input-bg: #f0f0f0;
+    --scrollbar-thumb: #c0c0c0;
+    --scrollbar-thumb-hover: #999;
+
+    --text: #1a1a1a;
+    --text-secondary: #333333;
+    --text-dim: #6b6b6b;
+    --text-muted: #767676;
+    --text-faint: #aaaaaa;
+    --text-ghost: #bbbbbb;
+    --accent: #2563eb;
+
+    --surface: #ffffff;
+    --surface-hover: #f0f0f0;
+    --surface-active: #e8e8f0;
+
+    --border: #d4d4d4;
+    --border-strong: #b0b0b0;
+    --border-subtle: #e8e8e8;
+
+    --overlay-subtle: rgba(0, 0, 0, 0.02);
+    --overlay-light:  rgba(0, 0, 0, 0.04);
+    --overlay-medium: rgba(0, 0, 0, 0.08);
+    --overlay-heavy:  rgba(0, 0, 0, 0.12);
+    --shadow-color: rgba(0, 0, 0, 0.10);
+
+    /* Semantic severity — light-mode contrast-safe variants */
+    --semantic-critical: #dc2626;
+    --semantic-high:     #ea580c;
+    --semantic-elevated: #d97706;
+    --semantic-normal:   #15803d;
+    --semantic-info:     #2563eb;
+    --semantic-positive: #16a34a;
+
+    /* Threat levels */
+    --threat-critical: #ef4444;
+    --threat-high:     #c2410c;
+    --threat-medium:   #ca8a04;
+    --threat-low:      #15803d;
+
+    /* Status */
+    --status-live:        #16a34a;
+    --status-cached:      #d97706;
+    --status-unavailable: #dc2626;
+
+    /* Legacy aliases */
+    --red:   #dc2626;
+    --green: #16a34a;
+    --yellow: #d97706;
+
+    --font-headline: "Special Gothic Expanded One", "Inter", sans-serif;
+    --font-body: "Inter", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "Roboto Mono", monospace;
   }
+
+  .dark {
+    --background: 222 47% 11%;       /* #0f172a Dark Slate */
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 224 76% 48%;
+
+    /* ── WorldMonitor Tactical Tokens (Dark Mode) ── */
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --text-secondary: #cbd5e1;
+    --accent: #3b82f6;
+    --surface: #1e293b;
+    --surface-hover: #334155;
+    --border: #334155;
+    --border-subtle: #1e293b;
+    --overlay-subtle: rgba(255, 255, 255, 0.05);
+
+    --semantic-critical: #f87171;
+    --semantic-high: #fb923c;
+    --semantic-elevated: #fbbf24;
+    --semantic-normal: #34d399;
+    --semantic-info: #60a5fa;
+
+    --threat-critical: #ef4444;
+    --threat-medium: #f59e0b;
+    --threat-low: #10b981;
+  }
+  
   .maplibregl-popup-content {
-    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+    @apply bg-transparent! shadow-none! p-0! rounded-[var(--radius)]!;
   }
   .maplibregl-popup-tip {
     @apply hidden!;
@@ -85,33 +195,7 @@
 }
 
 @layer components {
-  .glass-panel {
-    background: rgba(255, 255, 255, 0.05);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .glass-panel-strong {
-    background: rgba(255, 255, 255, 0.08);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-
-  .hero-gradient {
-    background: radial-gradient(circle at top right, hsla(0, 100%, 50%, 0.05), transparent 50%),
-                radial-gradient(circle at bottom left, hsla(10, 100%, 63%, 0.05), transparent 50%);
-  }
-
-  .sentinel-glow {
-    box-shadow: 0 0 15px hsla(0, 100%, 50%, 0.2);
-  }
-
-  .sentinel-text {
-    color: hsl(var(--sentinel-red));
-  }
-
+  /* ── Surface utilities ── */
   .surface-container {
     background-color: hsl(var(--muted));
   }
@@ -128,8 +212,19 @@
     background-color: hsl(var(--surface-highest));
   }
 
-  .kinetic-gradient {
-    background: radial-gradient(circle at center, hsl(var(--surface-low)) 0%, hsl(var(--surface)) 100%);
+  /* ── Clean Panels ── */
+  .glass-panel {
+    @apply bg-card border border-border shadow-sm;
+    border-radius: var(--radius);
+  }
+
+  .glass-panel-strong {
+    @apply bg-card border border-border shadow-md;
+    border-radius: var(--radius);
+  }
+
+  .sentinel-text {
+    color: hsl(var(--sentinel-red));
   }
 
   .sentinel-accent-bar {
@@ -138,10 +233,18 @@
   }
 
   .input-sentinel {
-    @apply bg-[hsl(var(--surface))] border-0 border-b-2 border-transparent text-foreground rounded-sm;
-    @apply focus:border-b-[hsl(var(--sentinel-red))] focus:ring-0 focus:outline-none;
-    @apply placeholder:text-[hsl(var(--on-surface-variant)_/_0.5)];
+    @apply bg-surface-low border border-border text-foreground rounded-md;
+    @apply focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none;
+    @apply placeholder:text-[hsl(var(--tertiary))];
+    transition: all 250ms ease;
   }
+
+  /* Route legend colour swatches (functional — kept for map) */
+  .legend-swatch-land  { background: #ef4444; }
+  .legend-swatch-sea   { background: #0ea5e9; }
+  .legend-swatch-air   { background: #a855f7; }
+  .legend-swatch-custom { background: #f59e0b; }
+  .legend-swatch-alt   { background: #22c55e; }
 }
 
 @layer utilities {
@@ -156,32 +259,65 @@
   .tracking-tight-sentinel {
     letter-spacing: -0.02em;
   }
+
+  .text-tertiary {
+    color: hsl(var(--tertiary));
+  }
+
+  .kinetic-gradient {
+    background: radial-gradient(circle at 0% 0%, #1e293b 0%, #0f172a 100%);
+  }
+
+  /* ── Tactical Animations ── */
+  .animate-scan {
+    animation: scan 4s linear infinite;
+  }
+  .animate-pulse-subtle {
+    animation: pulseSubtle 2s ease-in-out infinite;
+  }
+  .animate-flicker {
+    animation: flicker 0.3s steps(3, end) infinite;
+  }
+
+  /* ── Custom Scrollbar ── */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border) / 0.4);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--sentinel-red) / 0.6);
+  }
 }
 
-:root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+@keyframes scan {
+  from { top: -100%; opacity: 0; }
+  10% { opacity: 0.4; }
+  90% { opacity: 0.4; }
+  to { top: 200%; opacity: 0; }
 }
 
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  33% { opacity: 0.8; filter: brightness(0.9); }
+  66% { opacity: 0.95; filter: brightness(1.1); }
 }
 
 @theme inline {
-  --color-sidebar: var(--sidebar);
+  --color-sentinel: hsl(var(--sentinel-red));
+  --color-sentinel-foreground: #ffffff;
+  
+  --color-sidebar: var(--sidebar-background);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);

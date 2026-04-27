@@ -7,16 +7,18 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import DashboardLayout from "./components/DashboardLayout";
-import DashboardHome from "./pages/dashboard/DashboardHome";
-import RiskMap from "./pages/dashboard/RiskMap";
-import ExposureScores from "./pages/dashboard/ExposureScores";
-import RouteIntelligence from "./pages/dashboard/RouteIntelligence";
-import RFQManager from "./pages/dashboard/RFQManager";
-import SignalMonitor from "./pages/dashboard/SignalMonitor";
-import AuditLog from "./pages/dashboard/AuditLog";
-import SettingsPage from "./pages/dashboard/SettingsPage";
 import NotFound from "./pages/NotFound";
 
+// v4 Core Pages
+import CommandCenter from "@/pages/dashboard/CommandCenter";
+import NetworkView from "@/pages/dashboard/NetworkView";
+import Incidents from "@/pages/dashboard/Incidents";
+import IncidentSimulator from "@/pages/dashboard/IncidentSimulator";
+import Intelligence from "@/pages/dashboard/Intelligence";
+import Compliance from "@/pages/dashboard/Compliance";
+import SettingsPage from "./pages/dashboard/SettingsPage";
+import RouteViewer from "@/pages/dashboard/RouteViewer";
+// Legacy pages removed in v4
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -30,14 +32,15 @@ const App = () => (
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<DashboardHome />} />
-            <Route path="map" element={<RiskMap />} />
-            <Route path="exposure" element={<ExposureScores />} />
-            <Route path="routes" element={<RouteIntelligence />} />
-            <Route path="rfq" element={<RFQManager />} />
-            <Route path="signals" element={<SignalMonitor />} />
-            <Route path="audit" element={<AuditLog />} />
+            {/* ── v4 Core Routes ── */}
+            <Route index element={<CommandCenter />} />
+            <Route path="network" element={<NetworkView />} />
+            <Route path="incidents" element={<Incidents />} />
+            <Route path="incident-simulator" element={<IncidentSimulator />} />
+            <Route path="intelligence" element={<Intelligence />} />
+            <Route path="compliance" element={<Compliance />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="route-viewer" element={<RouteViewer />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
