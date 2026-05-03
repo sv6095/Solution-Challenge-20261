@@ -8,6 +8,7 @@ PyJWT==2.12.1
 reportlab==4.4.10
 apscheduler==3.11.2
 xgboost==3.2.0
+# numpy 2.3+ requires Python >=3.11 (Render was on 3.10 → use PYTHON_VERSION=3.11.13).
 numpy==2.4.4
 joblib==1.5.3
 google-cloud-firestore==2.26.0
@@ -26,7 +27,7 @@ openpyxl==3.1.5
 langgraph==1.1.6
 mcp==1.27.0
 celery==5.4.0
-# Render/GCP: pin Python via Backend/runtime.txt (<3.13). SB3 2.8.x requires torch>=2.3,<3.
+# Pin Python via Backend/runtime.txt + Render PYTHON_VERSION / .python-version (3.11.x). SB3 2.8.x requires torch>=2.3,<3.
 torch==2.3.1
 torch_geometric==2.5.3
 # WorldMonitor data layer — added for fetcher cron service
