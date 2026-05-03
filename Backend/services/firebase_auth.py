@@ -21,6 +21,7 @@ def _verify_firebase_id_token(token: str) -> dict[str, Any]:
         "source": "firebase-id-token",
     }
 
+
 def _dev_principal() -> dict[str, Any]:
     """Build the local bypass principal from env so dev auth matches local data."""
     return {
@@ -60,14 +61,21 @@ def verify_firebase_or_local_token(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     token = authorization.split(" ", 1)[1]
 
-    # ── Firebase ID token (Google / email-password via Firebase) ─────────────
+    # ── Firebase ID token (AUTH_PROVIDER=firebase; verify with Admin SDK) ──────
     if (os.getenv("AUTH_PROVIDER") or "local").strip().lower() == "firebase":
         try:
             return _verify_firebase_id_token(token)
         except Exception as exc:
             raise HTTPException(status_code=401, detail=f"Invalid or expired token: {exc}") from exc
 
-    # ── Local HS256 JWT (email/password against local store) ─────────────────
+    # ── Legacy: HS256 JWT when Firestore is on but auth is not Firebase Admin ───
+    firebase_enabled = os.getenv("FIRESTORE_ENABLED", "false").lower() == "true"
+    if firebase_enabled and os.getenv("FIREBASE_PROJECT_ID"):
+        payload = decode_token(token)
+        payload["source"] = "firebase-jwt"
+        return payload
+
+    # ── Local HS256 JWT (email/password against local store) ──────────────────
     payload = decode_token(token)
     payload["source"] = "local-jwt"
     return payload
