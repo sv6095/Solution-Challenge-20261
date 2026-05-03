@@ -12,6 +12,7 @@ numpy==2.4.4
 joblib==1.5.3
 google-cloud-firestore==2.26.0
 google-cloud-secret-manager==2.21.0
+firebase-admin==6.9.0
 google-api-python-client==2.193.0
 google-auth==2.49.1
 upstash-redis==1.6.0
@@ -25,7 +26,8 @@ openpyxl==3.1.5
 langgraph==1.1.6
 mcp==1.27.0
 celery==5.4.0
-torch==2.5.1
-torch_geometric==2.6.1
+# Render/GCP: pin Python via Backend/runtime.txt (<3.13). SB3 2.8.x requires torch>=2.3,<3.
+torch==2.3.1
+torch_geometric==2.5.3
 # WorldMonitor data layer — added for fetcher cron service
 feedparser==6.0.11

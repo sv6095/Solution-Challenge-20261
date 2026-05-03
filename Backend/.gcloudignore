@@ -1,0 +1,20 @@
+# Exclude from Cloud Build / source uploads
+.gcloudignore
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+.venv/
+env/
+.env
+.env.*
+!.env.production.example
+*.db
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+scratch/
