@@ -1,0 +1,9 @@
+# Ignore everything in the root
+/*
+
+# Except these explicitly allowed directories and files
+!/Backend/
+!/Frontend/
+!/Test/
+!/README.md
+!/.gitignore

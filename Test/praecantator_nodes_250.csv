@@ -1,0 +1,251 @@
+node_name,address,node_type,tier,latitude,longitude,daily_throughput_usd,safety_stock_days,critical_threshold_pct
+New York,"New York, United States",Hub,Tier 1,40.71,-74.01,3581950,15,65
+Los Angeles,"Los Angeles, United States",Hub,Tier 1,34.05,-118.24,4010288,20,72
+Chicago,"Chicago, United States",Hub,Tier 1,41.88,-87.63,1836213,16,68
+Houston,"Houston, United States",Hub,Tier 1,29.76,-95.37,3738283,29,67
+Phoenix,"Phoenix, United States",Hub,Tier 1,33.45,-112.07,3376705,25,66
+Philadelphia,"Philadelphia, United States",Hub,Tier 1,39.95,-75.17,1024978,14,71
+San Antonio,"San Antonio, United States",Hub,Tier 1,29.42,-98.49,1875850,28,84
+San Diego,"San Diego, United States",Hub,Tier 1,32.72,-117.16,1011299,29,71
+Dallas,"Dallas, United States",Hub,Tier 1,32.78,-96.8,3903203,29,78
+San Jose,"San Jose, United States",Hub,Tier 1,37.33,-121.89,1824594,26,83
+Austin,"Austin, United States",Hub,Tier 1,30.27,-97.74,2066816,12,70
+Jacksonville,"Jacksonville, United States",Hub,Tier 1,30.33,-81.66,3828208,25,75
+Fort Worth,"Fort Worth, United States",Hub,Tier 1,32.76,-97.33,2065476,16,71
+Columbus,"Columbus, United States",Hub,Tier 1,39.96,-82.99,4914842,22,68
+Charlotte,"Charlotte, United States",Hub,Tier 1,35.23,-80.84,1289004,24,68
+San Francisco,"San Francisco, United States",Hub,Tier 1,37.77,-122.42,2405668,23,84
+Indianapolis,"Indianapolis, United States",Hub,Tier 1,39.77,-86.16,2009480,13,79
+Seattle,"Seattle, United States",Hub,Tier 1,47.61,-122.33,3149103,15,77
+Denver,"Denver, United States",Hub,Tier 1,39.74,-104.99,1230511,29,74
+"Washington, DC","Washington, DC, United States",Hub,Tier 1,38.9,-77.04,4378775,23,83
+Boston,"Boston, United States",Hub,Tier 1,42.36,-71.06,1706516,14,66
+El Paso,"El Paso, United States",Hub,Tier 1,31.76,-106.49,3673539,19,74
+Nashville,"Nashville, United States",Hub,Tier 1,36.16,-86.78,1234671,19,68
+Detroit,"Detroit, United States",Hub,Tier 1,42.33,-83.05,2494364,20,79
+Oklahoma City,"Oklahoma City, United States",Hub,Tier 1,35.47,-97.52,3566253,23,70
+Portland,"Portland, United States",Hub,Tier 1,45.52,-122.68,2452651,23,71
+Las Vegas,"Las Vegas, United States",Hub,Tier 1,36.17,-115.14,3710918,20,85
+Memphis,"Memphis, United States",Hub,Tier 1,35.15,-90.05,1199483,17,82
+Louisville,"Louisville, United States",Hub,Tier 1,38.25,-85.76,3958179,19,70
+Baltimore,"Baltimore, United States",Hub,Tier 1,39.29,-76.61,2838859,24,73
+Milwaukee,"Milwaukee, United States",Hub,Tier 1,43.04,-87.91,4781371,29,72
+Albuquerque,"Albuquerque, United States",Hub,Tier 1,35.08,-106.65,3771480,22,66
+Tucson,"Tucson, United States",Hub,Tier 1,32.22,-110.97,1860697,13,75
+Fresno,"Fresno, United States",Hub,Tier 1,36.74,-119.79,2582607,20,67
+Sacramento,"Sacramento, United States",Hub,Tier 1,38.58,-121.49,1784926,30,75
+Kansas City,"Kansas City, United States",Hub,Tier 1,39.1,-94.58,1791820,27,77
+Long Beach,"Long Beach, United States",Hub,Tier 1,33.77,-118.19,4610630,26,69
+Mesa,"Mesa, United States",Hub,Tier 1,33.42,-111.83,2010987,16,72
+Atlanta,"Atlanta, United States",Hub,Tier 1,33.75,-84.39,4024710,29,82
+Miami,"Miami, United States",Hub,Tier 1,25.76,-80.19,2002018,30,78
+Orlando,"Orlando, United States",Hub,Tier 1,28.54,-81.38,4665742,30,77
+Tampa,"Tampa, United States",Hub,Tier 1,27.95,-82.46,2418323,19,69
+New Orleans,"New Orleans, United States",Hub,Tier 1,29.95,-90.07,3037108,27,67
+Cleveland,"Cleveland, United States",Hub,Tier 1,41.5,-81.69,4069980,13,68
+Cincinnati,"Cincinnati, United States",Hub,Tier 1,39.1,-84.51,1541062,17,78
+Raleigh,"Raleigh, United States",Hub,Tier 1,35.78,-78.64,3401520,14,77
+Pittsburgh,"Pittsburgh, United States",Hub,Tier 1,40.44,-79.99,2500627,26,81
+St. Louis,"St. Louis, United States",Hub,Tier 1,38.63,-90.2,1954507,29,65
+Minneapolis,"Minneapolis, United States",Hub,Tier 1,44.98,-93.27,3753315,15,82
+Buffalo,"Buffalo, United States",Hub,Tier 1,42.89,-78.87,4049409,20,85
+Virginia Beach,"Virginia Beach, United States",Hub,Tier 1,36.85,-75.98,2326799,15,74
+Richmond,"Richmond, United States",Hub,Tier 1,37.54,-77.44,2723537,17,79
+Salt Lake City,"Salt Lake City, United States",Hub,Tier 1,40.76,-111.89,913611,20,81
+Honolulu,"Honolulu, United States",Hub,Tier 1,21.31,-157.86,4095901,17,81
+Anchorage,"Anchorage, United States",Hub,Tier 1,61.22,-149.9,4727838,15,85
+Toronto,"Toronto, Canada",Hub,Tier 1,43.65,-79.38,2151768,28,84
+Montreal,"Montreal, Canada",Hub,Tier 1,45.5,-73.57,1734293,16,76
+Vancouver,"Vancouver, Canada",Hub,Tier 1,49.28,-123.12,4098202,17,82
+Calgary,"Calgary, Canada",Hub,Tier 1,51.05,-114.07,4899267,28,65
+Edmonton,"Edmonton, Canada",Hub,Tier 1,53.55,-113.49,3412155,22,80
+Ottawa,"Ottawa, Canada",Hub,Tier 1,45.42,-75.69,981691,15,76
+Winnipeg,"Winnipeg, Canada",Hub,Tier 1,49.9,-97.14,4585626,21,72
+Quebec City,"Quebec City, Canada",Hub,Tier 1,46.81,-71.21,1142955,19,83
+Halifax,"Halifax, Canada",Hub,Tier 1,44.65,-63.57,4871793,14,67
+Mexico City,"Mexico City, Mexico",Hub,Tier 1,19.43,-99.13,3969842,27,67
+Guadalajara,"Guadalajara, Mexico",Hub,Tier 1,20.67,-103.35,4090196,29,69
+Monterrey,"Monterrey, Mexico",Hub,Tier 1,25.69,-100.32,1438512,27,82
+Puebla,"Puebla, Mexico",Hub,Tier 1,19.04,-98.2,1592592,20,81
+Tijuana,"Tijuana, Mexico",Hub,Tier 1,32.52,-117.04,4559249,25,71
+León,"León, Mexico",Hub,Tier 1,21.12,-101.68,4796145,29,71
+Cancún,"Cancún, Mexico",Hub,Tier 1,21.16,-86.85,3890324,21,77
+Havana,"Havana, Cuba",Hub,Tier 1,23.11,-82.37,3717259,23,79
+Santo Domingo,"Santo Domingo, Dominican Republic",Hub,Tier 1,18.49,-69.93,4673254,28,79
+San Juan,"San Juan, Puerto Rico",Hub,Tier 1,18.47,-66.11,1407528,19,72
+Panama City,"Panama City, Panama",Hub,Tier 1,8.98,-79.52,1168544,22,65
+Guatemala City,"Guatemala City, Guatemala",Hub,Tier 1,14.62,-90.52,3367545,29,72
+San Salvador,"San Salvador, El Salvador",Hub,Tier 1,13.7,-89.19,3368096,19,65
+Tegucigalpa,"Tegucigalpa, Honduras",Hub,Tier 1,14.07,-87.2,1197766,13,72
+Managua,"Managua, Nicaragua",Hub,Tier 1,12.12,-86.25,1182697,13,75
+San José,"San José, Costa Rica",Hub,Tier 1,9.93,-84.08,1197197,28,72
+Kingston,"Kingston, Jamaica",Hub,Tier 2,17.98,-76.79,542004,18,70
+Port-au-Prince,"Port-au-Prince, Haiti",Hub,Tier 2,18.55,-72.34,474643,16,59
+Bogotá,"Bogotá, Colombia",Hub,Tier 2,4.71,-74.07,1008490,17,73
+Medellín,"Medellín, Colombia",Hub,Tier 2,6.24,-75.58,745631,11,80
+Cali,"Cali, Colombia",Hub,Tier 2,3.45,-76.53,745948,20,68
+Barranquilla,"Barranquilla, Colombia",Hub,Tier 2,10.98,-74.8,449659,9,58
+Cartagena,"Cartagena, Colombia",Hub,Tier 2,10.39,-75.48,940993,14,66
+Quito,"Quito, Ecuador",Hub,Tier 2,-0.18,-78.47,694154,14,69
+Guayaquil,"Guayaquil, Ecuador",Hub,Tier 2,-2.17,-79.92,1155798,19,56
+Lima,"Lima, Peru",Hub,Tier 2,-12.05,-77.04,956073,18,75
+Arequipa,"Arequipa, Peru",Hub,Tier 2,-16.4,-71.54,353198,8,67
+Santiago,"Santiago, Chile",Hub,Tier 2,-33.45,-70.67,1013587,13,80
+Valparaíso,"Valparaíso, Chile",Hub,Tier 2,-33.05,-71.62,1153529,9,62
+Buenos Aires,"Buenos Aires, Argentina",Hub,Tier 2,-34.6,-58.38,450896,11,72
+Córdoba,"Córdoba, Argentina",Hub,Tier 2,-31.42,-64.19,720405,10,68
+Rosario,"Rosario, Argentina",Hub,Tier 2,-32.95,-60.65,442401,12,69
+Montevideo,"Montevideo, Uruguay",Hub,Tier 2,-34.9,-56.16,511941,9,69
+Asunción,"Asunción, Paraguay",Hub,Tier 2,-25.27,-57.64,1097272,16,58
+Brasília,"Brasília, Brazil",Hub,Tier 2,-15.79,-47.88,303045,18,72
+São Paulo,"São Paulo, Brazil",Hub,Tier 2,-23.55,-46.63,1126638,8,57
+Rio de Janeiro,"Rio de Janeiro, Brazil",Hub,Tier 2,-22.91,-43.17,1040170,11,60
+Belo Horizonte,"Belo Horizonte, Brazil",Hub,Tier 2,-19.92,-43.94,676156,15,70
+Salvador,"Salvador, Brazil",Hub,Tier 2,-12.97,-38.5,474130,14,56
+Recife,"Recife, Brazil",Hub,Tier 2,-8.05,-34.88,422634,14,55
+Fortaleza,"Fortaleza, Brazil",Hub,Tier 2,-3.73,-38.52,659386,12,80
+Curitiba,"Curitiba, Brazil",Hub,Tier 2,-25.43,-49.27,1073267,15,64
+Porto Alegre,"Porto Alegre, Brazil",Hub,Tier 2,-30.03,-51.23,693555,19,78
+Manaus,"Manaus, Brazil",Hub,Tier 2,-3.1,-60.02,1071414,16,76
+Maracaibo,"Maracaibo, Venezuela",Hub,Tier 2,10.65,-71.64,1003305,15,59
+Caracas,"Caracas, Venezuela",Hub,Tier 2,10.48,-66.9,449122,12,61
+London,"London, United Kingdom",Hub,Tier 2,51.51,-0.13,311324,17,78
+Manchester,"Manchester, United Kingdom",Hub,Tier 2,53.48,-2.24,818532,8,78
+Birmingham,"Birmingham, United Kingdom",Hub,Tier 2,52.49,-1.89,578838,8,56
+Edinburgh,"Edinburgh, United Kingdom",Hub,Tier 2,55.95,-3.19,862554,15,71
+Glasgow,"Glasgow, United Kingdom",Hub,Tier 2,55.86,-4.25,1144141,16,60
+Dublin,"Dublin, Ireland",Hub,Tier 2,53.35,-6.26,309642,16,57
+Belfast,"Belfast, United Kingdom",Hub,Tier 2,54.6,-5.93,1142697,10,57
+Paris,"Paris, France",Hub,Tier 2,48.86,2.35,873939,9,76
+Marseille,"Marseille, France",Hub,Tier 2,43.3,5.37,1153682,11,67
+Lyon,"Lyon, France",Hub,Tier 2,45.76,4.84,375710,17,62
+Lille,"Lille, France",Hub,Tier 2,50.63,3.06,857040,17,56
+Toulouse,"Toulouse, France",Hub,Tier 2,43.6,1.44,899468,9,68
+Bordeaux,"Bordeaux, France",Hub,Tier 2,44.84,-0.58,939305,17,73
+Nice,"Nice, France",Hub,Tier 2,43.7,7.26,798177,13,63
+Madrid,"Madrid, Spain",Hub,Tier 2,40.42,-3.7,464181,18,77
+Barcelona,"Barcelona, Spain",Hub,Tier 2,41.38,2.17,579445,11,63
+Valencia,"Valencia, Spain",Hub,Tier 2,39.47,-0.38,665011,10,76
+Seville,"Seville, Spain",Hub,Tier 2,37.39,-5.99,926856,12,69
+Bilbao,"Bilbao, Spain",Hub,Tier 2,43.26,-2.94,581535,20,57
+Lisbon,"Lisbon, Portugal",Hub,Tier 2,38.72,-9.14,259767,15,74
+Porto,"Porto, Portugal",Hub,Tier 2,41.15,-8.61,840341,9,57
+Amsterdam,"Amsterdam, Netherlands",Hub,Tier 2,52.37,4.9,813750,11,71
+Rotterdam,"Rotterdam, Netherlands",Hub,Tier 2,51.92,4.48,528082,10,66
+The Hague,"The Hague, Netherlands",Hub,Tier 2,52.07,4.3,1173653,9,62
+Brussels,"Brussels, Belgium",Hub,Tier 2,50.85,4.35,637477,12,60
+Antwerp,"Antwerp, Belgium",Hub,Tier 2,51.22,4.4,709469,16,77
+Luxembourg City,"Luxembourg City, Luxembourg",Hub,Tier 2,49.61,6.13,567212,17,80
+Berlin,"Berlin, Germany",Hub,Tier 2,52.52,13.4,935743,16,55
+Hamburg,"Hamburg, Germany",Hub,Tier 2,53.55,10.0,950305,16,64
+Munich,"Munich, Germany",Hub,Tier 2,48.14,11.58,945613,9,59
+Frankfurt,"Frankfurt, Germany",Hub,Tier 2,50.11,8.68,527312,9,58
+Cologne,"Cologne, Germany",Hub,Tier 2,50.94,6.96,1028480,16,59
+Stuttgart,"Stuttgart, Germany",Hub,Tier 2,48.78,9.18,535577,12,74
+Düsseldorf,"Düsseldorf, Germany",Hub,Tier 2,51.23,6.78,470861,19,65
+Zurich,"Zurich, Switzerland",Hub,Tier 2,47.38,8.54,463487,18,75
+Geneva,"Geneva, Switzerland",Hub,Tier 2,46.2,6.15,1144343,12,71
+Vienna,"Vienna, Austria",Hub,Tier 2,48.21,16.37,762262,12,56
+Prague,"Prague, Czech Republic",Hub,Tier 2,50.08,14.44,346781,18,68
+Warsaw,"Warsaw, Poland",Hub,Tier 2,52.23,21.01,1119634,12,56
+Kraków,"Kraków, Poland",Hub,Tier 2,50.06,19.94,253717,13,79
+Budapest,"Budapest, Hungary",Hub,Tier 2,47.5,19.04,387174,18,63
+Bucharest,"Bucharest, Romania",Hub,Tier 2,44.43,26.1,419430,19,69
+Sofia,"Sofia, Bulgaria",Hub,Tier 2,42.7,23.32,828478,19,68
+Athens,"Athens, Greece",Hub,Tier 2,37.98,23.73,838153,8,58
+Thessaloniki,"Thessaloniki, Greece",Hub,Tier 2,40.64,22.94,328898,19,59
+Istanbul,"Istanbul, Turkey",Hub,Tier 2,41.01,28.97,822092,8,66
+Ankara,"Ankara, Turkey",Hub,Tier 2,39.93,32.86,860805,16,59
+Moscow,"Moscow, Russia",Hub,Tier 2,55.76,37.62,700664,10,56
+Saint Petersburg,"Saint Petersburg, Russia",Hub,Tier 2,59.93,30.33,573232,13,80
+Helsinki,"Helsinki, Finland",Hub,Tier 2,60.17,24.94,1152512,8,66
+Stockholm,"Stockholm, Sweden",Hub,Tier 2,59.33,18.07,470281,18,62
+Oslo,"Oslo, Norway",Hub,Tier 2,59.91,10.75,949330,9,66
+Copenhagen,"Copenhagen, Denmark",Hub,Tier 2,55.68,12.57,1068011,16,68
+Reykjavik,"Reykjavik, Iceland",Hub,Tier 2,64.15,-21.94,900810,19,59
+Tallinn,"Tallinn, Estonia",Hub,Tier 2,59.44,24.75,498237,10,80
+Riga,"Riga, Latvia",Hub,Tier 2,56.95,24.11,1100155,10,68
+Vilnius,"Vilnius, Lithuania",Hub,Tier 2,54.69,25.28,275990,10,78
+Kyiv,"Kyiv, Ukraine",Hub,Tier 2,50.45,30.52,598321,20,68
+Minsk,"Minsk, Belarus",Hub,Tier 2,53.9,27.56,1091204,18,78
+Belgrade,"Belgrade, Serbia",Hub,Tier 2,44.81,20.46,1100132,11,63
+Zagreb,"Zagreb, Croatia",Hub,Tier 3,45.81,15.98,133465,5,57
+Ljubljana,"Ljubljana, Slovenia",Hub,Tier 3,46.05,14.51,70302,11,52
+Sarajevo,"Sarajevo, Bosnia and Herzegovina",Hub,Tier 3,43.85,18.41,154633,11,56
+Skopje,"Skopje, North Macedonia",Hub,Tier 3,41.99,21.43,210007,7,52
+Tirana,"Tirana, Albania",Hub,Tier 3,41.33,19.82,62406,14,51
+Bratislava,"Bratislava, Slovakia",Hub,Tier 3,48.15,17.11,258910,9,53
+Naples,"Naples, Italy",Hub,Tier 3,40.85,14.27,86396,8,56
+Milan,"Milan, Italy",Hub,Tier 3,45.46,9.19,386321,12,57
+Turin,"Turin, Italy",Hub,Tier 3,45.07,7.69,331131,9,45
+Genoa,"Genoa, Italy",Hub,Tier 3,44.41,8.93,110472,8,50
+Palermo,"Palermo, Italy",Hub,Tier 3,38.12,13.36,354396,8,46
+Bologna,"Bologna, Italy",Hub,Tier 3,44.5,11.34,106834,13,58
+Venice,"Venice, Italy",Hub,Tier 3,45.44,12.33,231239,9,58
+Rome,"Rome, Italy",Hub,Tier 3,41.9,12.5,367828,12,48
+Kiev,"Kiev, Ukraine",Hub,Tier 3,50.45,30.52,251953,13,51
+Dubrovnik,"Dubrovnik, Croatia",Hub,Tier 3,42.65,18.09,183547,4,67
+Split,"Split, Croatia",Hub,Tier 3,43.51,16.44,278619,4,61
+Rijeka,"Rijeka, Croatia",Hub,Tier 3,45.33,14.44,332303,14,68
+Podgorica,"Podgorica, Montenegro",Hub,Tier 3,42.43,19.26,153303,9,58
+Tivat,"Tivat, Montenegro",Hub,Tier 3,42.43,18.69,86686,14,55
+Mostar,"Mostar, Bosnia and Herzegovina",Hub,Tier 3,43.34,17.81,376712,9,66
+Novi Sad,"Novi Sad, Serbia",Hub,Tier 3,45.26,19.84,115339,8,61
+Szczecin,"Szczecin, Poland",Hub,Tier 3,53.43,14.55,212154,14,58
+Gdansk,"Gdansk, Poland",Hub,Tier 3,54.35,18.65,221013,10,67
+Poznan,"Poznan, Poland",Hub,Tier 3,52.41,16.93,205008,12,49
+Lodz,"Lodz, Poland",Hub,Tier 3,51.76,19.46,150579,10,66
+Wroclaw,"Wroclaw, Poland",Hub,Tier 3,51.11,17.03,248781,14,68
+Klaipeda,"Klaipeda, Lithuania",Hub,Tier 3,55.71,21.13,141240,13,63
+Odessa,"Odessa, Ukraine",Hub,Tier 3,46.48,30.73,207784,10,62
+Chisinau,"Chisinau, Moldova",Hub,Tier 3,47.01,28.86,50212,8,54
+Tbilisi,"Tbilisi, Georgia",Hub,Tier 3,41.72,44.79,160196,10,70
+Yerevan,"Yerevan, Armenia",Hub,Tier 3,40.18,44.51,354079,13,65
+Baku,"Baku, Azerbaijan",Hub,Tier 3,40.38,49.89,218951,11,59
+Marrakech,"Marrakech, Morocco",Hub,Tier 3,31.63,-8.0,281819,14,51
+Casablanca,"Casablanca, Morocco",Hub,Tier 3,33.57,-7.59,318002,11,70
+Rabat,"Rabat, Morocco",Hub,Tier 3,34.02,-6.83,138967,14,47
+Algiers,"Algiers, Algeria",Hub,Tier 3,36.75,3.06,198785,12,66
+Oran,"Oran, Algeria",Hub,Tier 3,35.7,-0.64,381843,13,55
+Tunis,"Tunis, Tunisia",Hub,Tier 3,36.8,10.18,98961,7,66
+Tripoli,"Tripoli, Libya",Hub,Tier 3,32.89,13.19,212749,7,70
+Cairo,"Cairo, Egypt",Hub,Tier 3,30.04,31.24,154401,6,45
+Alexandria,"Alexandria, Egypt",Hub,Tier 3,31.2,29.92,74229,7,60
+Giza,"Giza, Egypt",Hub,Tier 3,30.01,31.21,370483,5,59
+Khartoum,"Khartoum, Sudan",Hub,Tier 3,15.5,32.56,267286,14,63
+Addis Ababa,"Addis Ababa, Ethiopia",Hub,Tier 3,8.98,38.79,151940,10,60
+Nairobi,"Nairobi, Kenya",Hub,Tier 3,-1.29,36.82,259533,7,49
+Mombasa,"Mombasa, Kenya",Hub,Tier 3,-4.04,39.67,393963,4,69
+Dar es Salaam,"Dar es Salaam, Tanzania",Hub,Tier 3,-6.8,39.28,105882,10,52
+Kampala,"Kampala, Uganda",Hub,Tier 3,0.35,32.58,142215,12,59
+Kigali,"Kigali, Rwanda",Hub,Tier 3,-1.95,30.06,76328,12,52
+Lagos,"Lagos, Nigeria",Hub,Tier 3,6.52,3.38,113626,11,49
+Abuja,"Abuja, Nigeria",Hub,Tier 3,9.07,7.49,293606,14,61
+Accra,"Accra, Ghana",Hub,Tier 3,5.56,-0.2,343037,13,55
+Kumasi,"Kumasi, Ghana",Hub,Tier 3,6.69,-1.62,282035,13,68
+Abidjan,"Abidjan, Côte d’Ivoire",Hub,Tier 3,5.35,-4.0,314649,10,62
+Dakar,"Dakar, Senegal",Hub,Tier 3,14.69,-17.45,283787,6,68
+Douala,"Douala, Cameroon",Hub,Tier 3,4.05,9.7,298866,11,53
+Yaoundé,"Yaoundé, Cameroon",Hub,Tier 3,3.87,11.52,179624,14,53
+Kinshasa,"Kinshasa, DR Congo",Hub,Tier 3,-4.32,15.31,323311,11,65
+Brazzaville,"Brazzaville, Republic of the Congo",Hub,Tier 3,-4.27,15.28,175433,8,59
+Luanda,"Luanda, Angola",Hub,Tier 3,-8.84,13.23,90623,8,52
+Maputo,"Maputo, Mozambique",Hub,Tier 3,-25.97,32.58,192456,9,55
+Johannesburg,"Johannesburg, South Africa",Hub,Tier 3,-26.2,28.04,333195,5,49
+Cape Town,"Cape Town, South Africa",Hub,Tier 3,-33.92,18.42,129078,7,57
+Durban,"Durban, South Africa",Hub,Tier 3,-29.86,31.02,130113,7,47
+Pretoria,"Pretoria, South Africa",Hub,Tier 3,-25.75,28.19,267510,10,55
+Windhoek,"Windhoek, Namibia",Hub,Tier 3,-22.56,17.08,334484,11,58
+Gaborone,"Gaborone, Botswana",Hub,Tier 3,-24.65,25.91,82645,7,58
+Harare,"Harare, Zimbabwe",Hub,Tier 3,-17.83,31.05,254198,13,67
+Lusaka,"Lusaka, Zambia",Hub,Tier 3,-15.42,28.28,60240,13,57
+Antananarivo,"Antananarivo, Madagascar",Hub,Tier 3,-18.88,47.51,300074,4,56
+Port Louis,"Port Louis, Mauritius",Hub,Tier 3,-20.16,57.5,206559,10,58
+Victoria,"Victoria, Seychelles",Hub,Tier 3,-4.62,55.45,332182,12,70
+Moroni,"Moroni, Comoros",Hub,Tier 3,-11.7,43.25,366278,7,60
+Singapore,"Singapore, Singapore",Hub,Tier 3,1.35,103.82,165040,8,58
+Kuala Lumpur,"Kuala Lumpur, Malaysia",Hub,Tier 3,3.14,101.69,304616,4,57
+Johor Bahru,"Johor Bahru, Malaysia",Hub,Tier 3,1.49,103.76,226228,14,66
+Penang,"Penang, Malaysia",Hub,Tier 3,5.41,100.33,261978,6,59
+Jakarta,"Jakarta, Indonesia",Hub,Tier 3,-6.2,106.85,116913,13,62
+Surabaya,"Surabaya, Indonesia",Hub,Tier 3,-7.25,112.75,64138,10,63
