@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft, Upload, Plus, X } from "lucide-react";
+import { Bell, Settings, ChevronLeft, Upload, Plus, X } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { api, getUserId } from "@/lib/api";
 import { useSearchParams } from "react-router-dom";
@@ -413,6 +413,7 @@ const OnboardingPage = (props: Props) => {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-label-sm text-slate-500 uppercase tracking-widest">Onboarding Protocol</span>
+            <Bell size={18} className="text-slate-500" />
             <Settings size={18} className="text-slate-500" />
           </div>
         </nav>
