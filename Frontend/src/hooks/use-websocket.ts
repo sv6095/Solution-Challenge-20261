@@ -39,11 +39,12 @@ const MAX_RECONNECT_DELAY = 30_000;
 
 function _getWsUrl(tenantId: string): string {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = import.meta.env.VITE_API_BASE?.replace(/^https?:\/\//, "")
-    || window.location.host;
-  // Strip trailing /api if present
-  const cleanHost = host.replace(/\/api\/?$/, "");
-  return `${proto}//${cleanHost}/ws/${tenantId}`;
+  
+  // Try to get host from VITE_API_URL or VITE_API_BASE_URL first
+  const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
+  const host = apiUrl.replace(/^https?:\/\//, "").split("/")[0] || window.location.host;
+  
+  return `${proto}//${host}/ws/${tenantId}`;
 }
 
 function _connect(tenantId: string) {

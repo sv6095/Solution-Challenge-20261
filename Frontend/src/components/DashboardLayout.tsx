@@ -3,10 +3,12 @@ import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Crosshair, Network, AlertTriangle, Radar, Shield,
-  Settings, Bell, Menu, ChevronLeft, ShieldAlert, Wifi, WifiOff,
+  Settings, Menu, ChevronLeft, ShieldAlert, Wifi, WifiOff,
+  LogOut,
 } from "lucide-react";
-import { api, getAccessToken, getUserId } from "@/lib/api";
+import { api, getAccessToken, getUserId, clearAuthSession } from "@/lib/api";
 import { useWSQueryInvalidation } from "@/hooks/use-websocket";
+import { useNavigate } from "react-router-dom";
 
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 void BASE; // referenced by authHeaders fetch calls below
@@ -59,6 +61,12 @@ const DashboardLayout = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate("/login");
+  };
 
   // ── WebSocket: auto-invalidate React Query caches on push events ──────
   const tenantId = getUserId();  // tenant = user in single-tenant dev mode
@@ -159,8 +167,8 @@ const DashboardLayout = () => {
           })}
         </nav>
 
-        {/* Settings at bottom */}
-        <div className="px-2 py-2 border-t border-border">
+        {/* Settings & Logout at bottom */}
+        <div className="px-2 py-2 border-t border-border space-y-1">
           <Link
             to="/dashboard/settings"
             className={`flex items-center gap-3 px-3 py-2 text-sm transition-colors duration-150 ${
@@ -172,6 +180,13 @@ const DashboardLayout = () => {
             <Settings size={14} />
             {!collapsed && <span className="text-xs font-headline">Settings</span>}
           </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:text-red-500 transition-colors duration-150"
+          >
+            <LogOut size={14} />
+            {!collapsed && <span className="text-xs font-headline">Log Out</span>}
+          </button>
         </div>
       </aside>
 
@@ -200,13 +215,6 @@ const DashboardLayout = () => {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <button
-              aria-label="Notifications"
-              className="relative text-muted-foreground hover:text-foreground transition-colors duration-150"
-            >
-              <Bell size={16} />
-              <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
-            </button>
           </div>
         </header>
 
