@@ -8,7 +8,6 @@ import { getFirebaseAuth, hasFirebaseAuthConfig } from "@/lib/firebase";
 import {
   completeGoogleOAuthSession,
   firebaseAuthErrorMessage,
-  rememberPreferenceBeforeGoogleRedirect,
 } from "@/lib/firebaseRedirect";
 
 const LoginPage = () => {
@@ -60,33 +59,14 @@ const LoginPage = () => {
 
     setGoogleSubmitting(true);
     try {
-      const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import("firebase/auth");
+      const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
       const auth = getFirebaseAuth()!;
       const provider = new GoogleAuthProvider();
       provider.addScope("profile");
       provider.addScope("email");
       provider.setCustomParameters({ prompt: "select_account" });
-
-      rememberPreferenceBeforeGoogleRedirect(rememberMe);
-
-      // Prefer popup: signInWithRedirect relies on cross-origin sessionStorage (auth iframe on
-      // firebaseapp.com vs app on Vercel). Modern browsers partition that storage →
-      // "missing initial state". Redirect is only a fallback when popups are blocked.
-      try {
-        const cred = await signInWithPopup(auth, provider);
-        await completeGoogleOAuthSession(cred.user, navigate, { rememberMe });
-      } catch (err) {
-        const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
-        if (code === "auth/popup-blocked") {
-          toast.warning(
-            "Popup blocked — trying redirect. If this fails, allow popups or set Firebase authDomain to this site and proxy /__/auth (Firebase redirect best practices).",
-            { duration: 8000 },
-          );
-          await signInWithRedirect(auth, provider);
-          return;
-        }
-        throw err;
-      }
+      const cred = await signInWithPopup(auth, provider);
+      await completeGoogleOAuthSession(cred.user, navigate, { rememberMe });
     } catch (err) {
       toast.error(firebaseAuthErrorMessage(err));
     } finally {
