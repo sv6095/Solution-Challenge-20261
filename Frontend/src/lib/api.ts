@@ -653,7 +653,10 @@ export const api = {
   },
   onboarding: {
     complete: (payload: OnboardingCompleteRequest) =>
-      request<{ status: string; user_id: string; updated_at?: string }>("/onboarding/complete", { method: "POST", body: JSON.stringify(payload) }),
+      request<{ status: string; user_id: string; updated_at?: string }>(
+        "/api/onboarding/complete",
+        { method: "POST", body: JSON.stringify(payload) },
+      ),
     status: (userId: string) =>
       request<OnboardingStatusResponse>(`/api/onboarding/status/${encodeURIComponent(userId)}`),
   },

@@ -129,6 +129,13 @@ const LoginPage = () => {
       provider.addScope("email");
       provider.setCustomParameters({ prompt: "select_account" });
 
+      // Popup sign-in polls `window.closed` on the opener; strict COOP (common on hosts like Vercel)
+      // makes that unreliable and floods the console. Redirect works everywhere for production SPA.
+      if (import.meta.env.PROD) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       try {
         const cred = await signInWithPopup(auth, provider);
         await finishGoogleSession(cred.user);

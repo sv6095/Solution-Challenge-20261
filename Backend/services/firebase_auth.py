@@ -38,6 +38,22 @@ def init_firebase_admin_app() -> None:
         return
 
     cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    needs_credentials = auth_provider == "firebase" or (firebase_enabled and firebase_project)
+    if cred_path and not os.path.isfile(cred_path):
+        if needs_credentials:
+            raise RuntimeError(
+                f"GOOGLE_APPLICATION_CREDENTIALS points to a missing file: {cred_path!r}. "
+                "On Render: Dashboard → your web service → Environment → Secret Files — upload your "
+                "Firebase/GCP service account JSON and set this variable to exactly "
+                "/etc/secrets/<that-filename>.json, then redeploy."
+            ) from None
+        logger.warning(
+            "GOOGLE_APPLICATION_CREDENTIALS is set but file is missing (%s); ignoring for ADC discovery",
+            cred_path,
+        )
+        os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
+        cred_path = ""
+
     try:
         if cred_path and os.path.isfile(cred_path):
             firebase_admin.initialize_app(credentials.Certificate(cred_path))
