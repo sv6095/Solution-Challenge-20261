@@ -69,20 +69,19 @@ const LoginPage = () => {
 
       rememberPreferenceBeforeGoogleRedirect(rememberMe);
 
-      // Popup sign-in polls `window.closed` on the opener; strict COOP (common on hosts like Vercel)
-      // makes that unreliable and floods the console. Redirect works everywhere for production SPA.
-      if (import.meta.env.PROD) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
+      // Prefer popup: signInWithRedirect relies on cross-origin sessionStorage (auth iframe on
+      // firebaseapp.com vs app on Vercel). Modern browsers partition that storage →
+      // "missing initial state". Redirect is only a fallback when popups are blocked.
       try {
         const cred = await signInWithPopup(auth, provider);
         await completeGoogleOAuthSession(cred.user, navigate, { rememberMe });
       } catch (err) {
         const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
         if (code === "auth/popup-blocked") {
-          toast("Popup blocked — redirecting to Google sign-in…");
+          toast.warning(
+            "Popup blocked — trying redirect. If this fails, allow popups or set Firebase authDomain to this site and proxy /__/auth (Firebase redirect best practices).",
+            { duration: 8000 },
+          );
           await signInWithRedirect(auth, provider);
           return;
         }

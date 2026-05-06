@@ -18,7 +18,11 @@ export const hasFirebaseConfig = Boolean(
 
 /**
  * Google / OAuth sign-in requires `authDomain` (e.g. `your-project.firebaseapp.com`).
- * Without it, `signInWithPopup` fails early or returns opaque errors.
+ * Without it, `signInWithPopup` fails early or opaque errors.
+ *
+ * Hosting on a different domain than `authDomain` breaks `signInWithRedirect` in modern
+ * browsers (storage partitioning). Prefer popup sign-in, or set `authDomain` to the
+ * hostname that serves this app and proxy `/__/auth` to Firebase (see Firebase redirect best practices).
  */
 export const hasFirebaseAuthConfig = Boolean(
   hasFirebaseConfig && String(firebaseConfig.authDomain ?? "").trim().length > 0,

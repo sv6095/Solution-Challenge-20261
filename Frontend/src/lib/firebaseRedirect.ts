@@ -45,7 +45,17 @@ export function firebaseAuthErrorMessage(err: unknown): string {
     };
     if (hints[code]) return hints[code];
   }
-  if (err instanceof Error) return err.message;
+  if (err instanceof Error) {
+    const msg = err.message;
+    if (/missing initial state/i.test(msg)) {
+      return (
+        "Google redirect could not read sign-in state (browser storage partitioning). " +
+        "Allow popups for this site and try again, or configure Firebase with your app hostname " +
+        "as authDomain and reverse-proxy /__/auth to your-project.firebaseapp.com."
+      );
+    }
+    return msg;
+  }
   return "Google sign-in failed.";
 }
 

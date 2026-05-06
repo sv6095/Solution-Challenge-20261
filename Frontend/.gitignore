@@ -35,6 +35,9 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Firebase auth helpers synced from <project>.firebaseapp.com at build (Option 4).
+public/__/
+
 # Testing
 /coverage
 
