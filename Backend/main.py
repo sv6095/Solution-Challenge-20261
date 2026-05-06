@@ -3108,7 +3108,11 @@ async def api_list_checkpoints(user=Depends(verify_firebase_or_local_token)) -> 
     Called by the Incidents page header to show the checkpoint badge count.
     """
     tenant_id = _resolved_request_tenant(user)
-    pending = list_pending_checkpoints(tenant_id, limit=50)
+    try:
+        pending = list_pending_checkpoints(tenant_id, limit=50)
+    except Exception as exc:
+        logger.warning("governance checkpoints query failed: %s", exc)
+        pending = []
     return {
         "pending": pending,
         "count": len(pending),

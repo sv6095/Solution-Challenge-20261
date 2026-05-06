@@ -171,8 +171,20 @@ def get_checkpoint_for_incident(incident_id: str, tenant_id: str | None = None) 
 def list_pending_checkpoints(tenant_id: str, limit: int = 50) -> list[dict[str, Any]]:
     """Return all PENDING (non-expired) checkpoints for a tenant."""
     now = _now()
-    rows = _client().collection("tenants").document(tenant_id).collection("governance_checkpoints").where("status", "==", "PENDING").where("expires_at", ">", now).order_by("created_at", direction=g_firestore.Query.DESCENDING).limit(limit).stream()
-    return [doc.to_dict() or {} for doc in rows]
+    # Firestore requires order_by to match the inequality field (expires_at).
+    # Sorting by created_at is done in Python to avoid requiring a composite index.
+    rows = (
+        _client()
+        .collection("tenants")
+        .document(tenant_id)
+        .collection("governance_checkpoints")
+        .where("status", "==", "PENDING")
+        .where("expires_at", ">", now)
+        .stream()
+    )
+    docs = [doc.to_dict() or {} for doc in rows]
+    docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+    return docs[:limit]
 
 
 def verify_checkpoint(checkpoint_id: str, verified_by: str, tenant_id: str) -> dict[str, Any] | None:

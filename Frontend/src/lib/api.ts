@@ -101,11 +101,8 @@ let refreshPromise: Promise<string | null> | null = null;
 function isPublicPath(path: string): boolean {
   return (
     path === "/auth/login" ||
-    path === "/api/auth/login" ||
     path === "/auth/register" ||
-    path === "/api/auth/register" ||
     path === "/auth/refresh" ||
-    path === "/api/auth/refresh" ||
     path === "/auth/google"
   );
 }
@@ -220,9 +217,7 @@ async function request<T>(path: string, options?: RequestInit, retryOnAuthFailur
     res.status === 401 &&
     retryOnAuthFailure &&
     path !== "/auth/login" &&
-    path !== "/api/auth/login" &&
-    path !== "/auth/refresh" &&
-    path !== "/api/auth/refresh"
+    path !== "/auth/refresh"
   ) {
     const refreshedToken = await refreshAccessToken();
     if (refreshedToken) {
@@ -649,21 +644,21 @@ export const api = {
     login: (payload: AuthLoginRequest) =>
       request<AuthLoginResponse>("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
     profile: (userId: string) =>
-      request<AuthProfileResponse>(`/api/auth/profile/${encodeURIComponent(userId)}`),
+      request<AuthProfileResponse>(`/auth/profile/${encodeURIComponent(userId)}`),
   },
   onboarding: {
     complete: (payload: OnboardingCompleteRequest) =>
       request<{ status: string; user_id: string; updated_at?: string }>(
-        "/api/onboarding/complete",
+        "/onboarding/complete",
         { method: "POST", body: JSON.stringify(payload) },
       ),
     status: (userId: string) =>
-      request<OnboardingStatusResponse>(`/api/onboarding/status/${encodeURIComponent(userId)}`),
+      request<OnboardingStatusResponse>(`/onboarding/status/${encodeURIComponent(userId)}`),
   },
   contexts: {
     get: (userId: string) =>
       request<{ user_id: string; updated_at?: string; context: Record<string, unknown> }>(
-        `/api/contexts/${encodeURIComponent(userId)}`,
+        `/contexts/${encodeURIComponent(userId)}`,
       ),
   },
   dashboard: {
