@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import OnboardingPage from "@/pages/OnboardingPage";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+const BASE = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/+$/, "");
 
 import { getAccessToken, getUserId } from "@/lib/api";
 

@@ -8,7 +8,7 @@ import {
 import { api, getAccessToken, getUserId } from "@/lib/api";
 import { useWSQueryInvalidation } from "@/hooks/use-websocket";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+const BASE = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/+$/, "");
 void BASE; // referenced by authHeaders fetch calls below
 
 function authHeaders(): HeadersInit {

@@ -39,10 +39,11 @@ const MAX_RECONNECT_DELAY = 30_000;
 
 function _getWsUrl(tenantId: string): string {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = import.meta.env.VITE_API_BASE?.replace(/^https?:\/\//, "")
+  const host = (import.meta.env.VITE_API_BASE ?? import.meta.env.VITE_API_URL ?? "")
+    .replace(/^https?:\/\//, "")
     || window.location.host;
-  // Strip trailing /api if present
-  const cleanHost = host.replace(/\/api\/?$/, "");
+  // Strip trailing /api if present, then any trailing slash
+  const cleanHost = host.replace(/\/api\/?$/, "").replace(/\/+$/, "");
   return `${proto}//${cleanHost}/ws/${tenantId}`;
 }
 

@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ThumbsUp, ThumbsDown, HelpCircle, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+const BASE = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/+$/, "");
 
 import { getAccessToken, getUserId } from "@/lib/api";
 

@@ -20,7 +20,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { api } from "@/lib/api";
 import { ReasoningPanel } from "@/components/workflow/ReasoningPanel";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+const BASE = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/+$/, "");
 
 import { getAccessToken, getUserId } from "@/lib/api";
 

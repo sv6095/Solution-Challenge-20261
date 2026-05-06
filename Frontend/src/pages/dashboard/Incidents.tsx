@@ -11,7 +11,7 @@ import { CheckpointBanner } from "@/components/workflow/CheckpointBanner";
 import { GovernanceFeedbackWidget } from "@/components/workflow/GovernanceFeedbackWidget";
 import { motion, AnimatePresence } from "motion/react";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+const BASE = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/+$/, "");
 
 import { getAccessToken, getUserId } from "@/lib/api";
 

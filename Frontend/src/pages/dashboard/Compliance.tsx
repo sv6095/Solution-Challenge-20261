@@ -20,7 +20,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { api } from "@/lib/api";
 
-const BASE = import.meta.env.VITE_API_URL ?? "/api";
+const BASE = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/+$/, "");
 
 import { getAccessToken, getUserId } from "@/lib/api";
 
