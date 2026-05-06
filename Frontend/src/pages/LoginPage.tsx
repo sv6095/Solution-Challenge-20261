@@ -1,30 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { api, storeAuthSession } from "@/lib/api";
 import { getFirebaseAuth, hasFirebaseAuthConfig } from "@/lib/firebase";
-import type { User } from "firebase/auth";
-
-function authErrorMessage(err: unknown): string {
-  if (err && typeof err === "object" && "code" in err) {
-    const code = String((err as { code?: string }).code);
-    const hints: Record<string, string> = {
-      "auth/popup-closed-by-user": "Sign-in was cancelled.",
-      "auth/unauthorized-domain":
-        "This site’s domain is not in Firebase → Authentication → Settings → Authorized domains.",
-      "auth/operation-not-allowed":
-        "Enable Google in Firebase → Authentication → Sign-in method.",
-      "auth/network-request-failed": "Network error. Try again.",
-      "auth/account-exists-with-different-credential":
-        "An account already exists with this email using a different sign-in method.",
-    };
-    if (hints[code]) return hints[code];
-  }
-  if (err instanceof Error) return err.message;
-  return "Google sign-in failed.";
-}
+import {
+  completeGoogleOAuthSession,
+  firebaseAuthErrorMessage,
+  rememberPreferenceBeforeGoogleRedirect,
+} from "@/lib/firebaseRedirect";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -34,53 +19,6 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
-
-  const finishGoogleSession = async (user: User) => {
-    const idToken = await user.getIdToken();
-    storeAuthSession({
-      userId: user.uid,
-      accessToken: idToken,
-      refreshToken: "",
-      rememberMe,
-      authKind: "firebase",
-    });
-    toast.success("Signed in with Google.");
-    try {
-      const status = await api.onboarding.status(user.uid);
-      navigate(status.complete ? "/dashboard" : "/onboarding");
-    } catch {
-      navigate("/onboarding");
-    }
-  };
-
-  // Complete Google redirect flow (when popup is blocked or redirect was used).
-  useEffect(() => {
-    if (!hasFirebaseAuthConfig) return;
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const { getRedirectResult } = await import("firebase/auth");
-        const auth = getFirebaseAuth();
-        if (!auth) return;
-        const result = await getRedirectResult(auth);
-        if (cancelled || !result?.user) return;
-        setGoogleSubmitting(true);
-        try {
-          await finishGoogleSession(result.user);
-        } finally {
-          setGoogleSubmitting(false);
-        }
-      } catch (err) {
-        if (!cancelled) toast.error(authErrorMessage(err));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount for redirect return
-  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +67,8 @@ const LoginPage = () => {
       provider.addScope("email");
       provider.setCustomParameters({ prompt: "select_account" });
 
+      rememberPreferenceBeforeGoogleRedirect(rememberMe);
+
       // Popup sign-in polls `window.closed` on the opener; strict COOP (common on hosts like Vercel)
       // makes that unreliable and floods the console. Redirect works everywhere for production SPA.
       if (import.meta.env.PROD) {
@@ -138,7 +78,7 @@ const LoginPage = () => {
 
       try {
         const cred = await signInWithPopup(auth, provider);
-        await finishGoogleSession(cred.user);
+        await completeGoogleOAuthSession(cred.user, navigate, { rememberMe });
       } catch (err) {
         const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
         if (code === "auth/popup-blocked") {
@@ -149,7 +89,7 @@ const LoginPage = () => {
         throw err;
       }
     } catch (err) {
-      toast.error(authErrorMessage(err));
+      toast.error(firebaseAuthErrorMessage(err));
     } finally {
       setGoogleSubmitting(false);
     }
