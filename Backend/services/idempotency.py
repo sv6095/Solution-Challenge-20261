@@ -13,7 +13,7 @@ Pattern:
     - Returns IN_FLIGHT → caller waits or returns 202 (depends on use case).
 
 Storage:
-  SQLite `idempotency_keys` table (same DB as incidents).
+  Firestore `idempotency_keys` collection.
 
 Retention:
   Keys expire after TTL_SECONDS (default 72 hours). Expired keys are pruned
@@ -37,35 +37,18 @@ Usage:
 from __future__ import annotations
 
 import hashlib
-import json
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from services.local_store import DB_PATH
+from services.firestore_store import _client, _safe_doc_id
 
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
 
 def _ensure_schema() -> None:
-    with sqlite3.connect(DB_PATH) as con:
-        con.execute("PRAGMA journal_mode=WAL")
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS idempotency_keys (
-                ikey          TEXT PRIMARY KEY,
-                status        TEXT NOT NULL DEFAULT 'IN_FLIGHT',
-                response_json TEXT,
-                owner_id      TEXT,
-                created_at    TEXT NOT NULL,
-                completed_at  TEXT,
-                expires_at    TEXT NOT NULL
-            )
-        """)
-        con.execute(
-            "CREATE INDEX IF NOT EXISTS idx_ikey_expires ON idempotency_keys(expires_at)"
-        )
+    _client()
 
 
 _ensure_schema()
@@ -103,15 +86,16 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _conn() -> sqlite3.Connection:
-    return sqlite3.connect(DB_PATH)
-
-
 def _prune_expired() -> None:
     """Delete expired keys. Called on every guard check."""
     cutoff = _now().isoformat()
-    with _conn() as con:
-        con.execute("DELETE FROM idempotency_keys WHERE expires_at <= ?", (cutoff,))
+    db = _client()
+    docs = list(db.collection("idempotency_keys").where("expires_at", "<=", cutoff).limit(100).stream())
+    batch = db.batch()
+    for doc in docs:
+        batch.delete(doc.reference)
+    if docs:
+        batch.commit()
 
 
 def derive_key(*parts: str) -> str:
@@ -150,48 +134,25 @@ def idempotency_guard(
     now = _now()
     expires_at = (now + timedelta(seconds=ttl_seconds)).isoformat()
 
-    with _conn() as con:
-        # Try to read existing key
-        row = con.execute(
-            "SELECT status, response_json FROM idempotency_keys WHERE ikey = ?",
-            (ikey,),
-        ).fetchone()
+    ref = _client().collection("idempotency_keys").document(_safe_doc_id(ikey))
+    snap = ref.get()
+    if snap.exists:
+        data = snap.to_dict() or {}
+        status = data.get("status")
+        if status == "COMPLETED":
+            return IdempotencyResult(action="DUPLICATE", ikey=ikey, cached_response=data.get("response"))
+        if status == "IN_FLIGHT":
+            return IdempotencyResult(action="IN_FLIGHT", ikey=ikey, cached_response=None)
+        ref.delete()
 
-        if row:
-            status, response_json = row
-            if status == "COMPLETED":
-                try:
-                    cached = json.loads(response_json or "null")
-                except Exception:
-                    cached = None
-                return IdempotencyResult(action="DUPLICATE", ikey=ikey, cached_response=cached)
-            if status == "IN_FLIGHT":
-                return IdempotencyResult(action="IN_FLIGHT", ikey=ikey, cached_response=None)
-            # Status is FAILED — allow retry
-            con.execute(
-                "DELETE FROM idempotency_keys WHERE ikey = ?",
-                (ikey,),
-            )
-
-        # Insert new IN_FLIGHT record using INSERT OR IGNORE for race safety
-        con.execute(
-            """
-            INSERT OR IGNORE INTO idempotency_keys
-                (ikey, status, owner_id, created_at, expires_at)
-            VALUES (?, 'IN_FLIGHT', ?, ?, ?)
-            """,
-            (ikey, owner_id, now.isoformat(), expires_at),
-        )
-        # Re-check if we won the race
-        status_after = con.execute(
-            "SELECT status FROM idempotency_keys WHERE ikey = ?", (ikey,)
-        ).fetchone()
-
-        if status_after and status_after[0] == "IN_FLIGHT":
-            return IdempotencyResult(action="ALLOW", ikey=ikey, cached_response=None)
-
-        # Another concurrent request won — return IN_FLIGHT
-        return IdempotencyResult(action="IN_FLIGHT", ikey=ikey, cached_response=None)
+    ref.set({
+        "ikey": ikey,
+        "status": "IN_FLIGHT",
+        "owner_id": owner_id,
+        "created_at": now.isoformat(),
+        "expires_at": expires_at,
+    })
+    return IdempotencyResult(action="ALLOW", ikey=ikey, cached_response=None)
 
 
 def mark_completed(ikey: str, response: Any = None) -> None:
@@ -200,25 +161,15 @@ def mark_completed(ikey: str, response: Any = None) -> None:
     Call this after a successful operation that was GUARDed.
     """
     now = _now().isoformat()
-    try:
-        response_json = json.dumps(response)
-    except Exception:
-        response_json = json.dumps({"completed": True})
-
-    with _conn() as con:
-        con.execute(
-            "UPDATE idempotency_keys SET status = 'COMPLETED', response_json = ?, completed_at = ? WHERE ikey = ?",
-            (response_json, now, ikey),
-        )
+    _client().collection("idempotency_keys").document(_safe_doc_id(ikey)).set(
+        {"status": "COMPLETED", "response": response if response is not None else {"completed": True}, "completed_at": now},
+        merge=True,
+    )
 
 
 def mark_failed(ikey: str) -> None:
     """Mark an idempotency key as FAILED so retries are allowed."""
-    with _conn() as con:
-        con.execute(
-            "UPDATE idempotency_keys SET status = 'FAILED' WHERE ikey = ?",
-            (ikey,),
-        )
+    _client().collection("idempotency_keys").document(_safe_doc_id(ikey)).set({"status": "FAILED"}, merge=True)
 
 
 def release_in_flight(ikey: str) -> None:
@@ -226,34 +177,25 @@ def release_in_flight(ikey: str) -> None:
     Release an IN_FLIGHT key without marking it complete or failed.
     Use when the operation was aborted before completing.
     """
-    with _conn() as con:
-        con.execute(
-            "DELETE FROM idempotency_keys WHERE ikey = ? AND status = 'IN_FLIGHT'",
-            (ikey,),
-        )
+    ref = _client().collection("idempotency_keys").document(_safe_doc_id(ikey))
+    data = ref.get().to_dict() or {}
+    if data.get("status") == "IN_FLIGHT":
+        ref.delete()
 
 
 def get_idempotency_record(ikey: str) -> dict[str, Any] | None:
-    with _conn() as con:
-        row = con.execute(
-            "SELECT ikey, status, response_json, owner_id, created_at, completed_at, expires_at "
-            "FROM idempotency_keys WHERE ikey = ?",
-            (ikey,),
-        ).fetchone()
-    if not row:
+    doc = _client().collection("idempotency_keys").document(_safe_doc_id(ikey)).get()
+    if not doc.exists:
         return None
-    try:
-        response = json.loads(row[2] or "null")
-    except Exception:
-        response = None
+    data = doc.to_dict() or {}
     return {
-        "ikey": row[0],
-        "status": row[1],
-        "response": response,
-        "owner_id": row[3],
-        "created_at": row[4],
-        "completed_at": row[5],
-        "expires_at": row[6],
+        "ikey": data.get("ikey") or ikey,
+        "status": data.get("status"),
+        "response": data.get("response"),
+        "owner_id": data.get("owner_id"),
+        "created_at": data.get("created_at"),
+        "completed_at": data.get("completed_at"),
+        "expires_at": data.get("expires_at"),
     }
 
 

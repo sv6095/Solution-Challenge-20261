@@ -30,7 +30,7 @@ from services.firestore import (
     write_workflow_event,
     write_workflow_outcome,
 )
-from services.local_store import get_orchestration_run, upsert_orchestration_run
+from services.firestore_store import get_orchestration_run, upsert_orchestration_run
 from workflows.state import WorkflowState
 
 

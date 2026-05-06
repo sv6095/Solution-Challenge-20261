@@ -31,7 +31,7 @@ from services.governance_checkpoint import (
     create_checkpoint,
 )
 from services.idempotency import derive_key, idempotency_guard, mark_completed
-from services.local_store import (
+from services.firestore_store import (
     add_audit,
     get_incident,
     get_orchestration_run,

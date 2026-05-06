@@ -12,7 +12,7 @@ from typing import Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from .local_store import add_audit
+from .firestore_store import add_audit
 from .secret_manager import get_secret
 
 
@@ -40,7 +40,7 @@ def send_rfq_email(
     if result["status"] != "sent":
         result = _try_smtp(recipient, subject, body)
     if result["status"] != "sent":
-        result = _local_fallback(recipient, subject, body)
+        result = _audit_fallback(recipient, subject, body)
 
     # ── Post-send lifecycle integration ───────────────────────────────────
     if workflow_id and result["status"] == "sent":
@@ -143,16 +143,16 @@ def _try_smtp(recipient: str, subject: str, body: str) -> dict[str, Any]:
         return {"status": "failed", "provider": "smtp", "message_id": None, "error": str(exc)}
 
 
-def _local_fallback(recipient: str, subject: str, body: str) -> dict[str, Any]:
-    """Tier 3: Durable local audit record — message body is NEVER lost."""
+def _audit_fallback(recipient: str, subject: str, body: str) -> dict[str, Any]:
+    """Tier 3: Durable Firestore audit record — message body is NEVER lost."""
     fallback_payload = {
         "recipient": recipient,
         "subject": subject,
         "body": body,
         "stored_at": datetime.now(timezone.utc).isoformat(),
     }
-    add_audit("local_mail_fallback", json.dumps(fallback_payload))
-    return {"status": "logged", "provider": "local-fallback", "message_id": None}
+    add_audit("audit_mail_fallback", json.dumps(fallback_payload))
+    return {"status": "logged", "provider": "audit-fallback", "message_id": None}
 
 
 def _plain_to_html(body: str, subject: str) -> str:

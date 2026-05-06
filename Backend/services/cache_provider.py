@@ -5,7 +5,7 @@ import os
 import time
 from typing import Any
 
-from .local_store import cache_get_entry, cache_prune_expired, cache_set_entry
+from .firestore_store import cache_get_entry, cache_prune_expired, cache_set_entry
 
 CACHE_PROVIDER = (os.getenv("CACHE_PROVIDER") or "memory").strip().lower()
 
@@ -47,13 +47,13 @@ async def cache_get(key: str) -> Any | None:
             except Exception:
                 return raw
         except Exception:
-            sqlite_value = cache_get_entry(key)
-            if sqlite_value is not None:
-                return sqlite_value
+            cached_value = cache_get_entry(key)
+            if cached_value is not None:
+                return cached_value
             return _memory_get(key)
-    sqlite_value = cache_get_entry(key)
-    if sqlite_value is not None:
-        return sqlite_value
+    cached_value = cache_get_entry(key)
+    if cached_value is not None:
+        return cached_value
     return _memory_get(key)
 
 

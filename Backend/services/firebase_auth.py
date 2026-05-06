@@ -88,6 +88,8 @@ def _verify_firebase_id_token(token: str) -> dict[str, Any]:
     return {
         "sub": uid,
         "email": str(decoded.get("email") or ""),
+        "name": str(decoded.get("name") or ""),
+        "picture": str(decoded.get("picture") or ""),
         "tenant_id": str(decoded.get("tenant_id") or decoded.get("org_id") or uid or "demo-tenant"),
         "role": str(decoded.get("role") or "admin"),
         "source": "firebase-id-token",

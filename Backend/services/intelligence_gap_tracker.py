@@ -7,7 +7,7 @@ from typing import Any
 
 from services.data_quality_guard import assess_context_quality
 from services.data_registry import data_registry_health_report
-from services.local_store import list_master_data_changes, list_signals
+from services.firestore_store import list_master_data_changes, list_signals
 
 
 def _env_float(name: str, default: float) -> float:

@@ -10,7 +10,7 @@ the Praecantator frontend can poll `/global/*` endpoints in real-time.
 Architecture
 ------------
   • APScheduler triggers each fetcher on its own cadence.
-  • Results are stored in SQLite (local dev) / Firestore (production).
+  • Results are stored in Firestore.
   • Every route is independently resilient — failure of one source never
     blocks others.
   • All external API keys come from environment variables matching the
@@ -48,18 +48,15 @@ import asyncio
 import json
 import logging
 import os
-import sqlite3
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 
+from services.firestore_store import _client, _safe_doc_id
+
 logger = logging.getLogger(__name__)
-
-# ── DB path ──────────────────────────────────────────────────────────────────
-
-DB_PATH = os.getenv("LOCAL_DB_PATH", "./local_fallback.db")
 
 # ── API keys from environment (worldmonitor conventions) ─────────────────────
 
@@ -118,56 +115,37 @@ CRITICAL_MINERALS = [
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _db_upsert(table: str, key: str, data: Any) -> None:
-    """Store JSON blob keyed by name in worldmonitor_cache table."""
-    conn = sqlite3.connect(DB_PATH)
-    try:
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS worldmonitor_cache (
-                key TEXT PRIMARY KEY,
-                table_name TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                fetched_at TEXT NOT NULL
-            )"""
-        )
-        conn.execute(
-            "INSERT OR REPLACE INTO worldmonitor_cache (key,table_name,payload,fetched_at) VALUES (?,?,?,?)",
-            (key, table, json.dumps(data, default=str), datetime.now(timezone.utc).isoformat()),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    """Store JSON payload keyed by name in Firestore."""
+    _client().collection("worldmonitor_cache").document(_safe_doc_id(key)).set({
+        "key": key,
+        "table_name": table,
+        "payload": data,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }, merge=True)
 
 
 def db_read(key: str) -> Any | None:
     """Read a cached payload. Returns None if not found."""
-    conn = sqlite3.connect(DB_PATH)
     try:
-        row = conn.execute(
-            "SELECT payload, fetched_at FROM worldmonitor_cache WHERE key=?",
-            (key,),
-        ).fetchone()
-        if not row:
+        doc = _client().collection("worldmonitor_cache").document(_safe_doc_id(key)).get()
+        if not doc.exists:
             return None
-        return {"data": json.loads(row[0]), "fetched_at": row[1]}
+        data = doc.to_dict() or {}
+        return {"data": data.get("payload"), "fetched_at": data.get("fetched_at")}
     except Exception:
         return None
-    finally:
-        conn.close()
 
 
 def db_read_all_by_table(table: str) -> list[dict]:
     """Read all records for a given table name."""
-    conn = sqlite3.connect(DB_PATH)
     try:
-        rows = conn.execute(
-            "SELECT key, payload, fetched_at FROM worldmonitor_cache WHERE table_name=?",
-            (table,),
-        ).fetchall()
-        return [{"key": r[0], "data": json.loads(r[1]), "fetched_at": r[2]} for r in rows]
+        rows = _client().collection("worldmonitor_cache").where("table_name", "==", table).stream()
+        return [
+            {"key": (doc.to_dict() or {}).get("key"), "data": (doc.to_dict() or {}).get("payload"), "fetched_at": (doc.to_dict() or {}).get("fetched_at")}
+            for doc in rows
+        ]
     except Exception:
         return []
-    finally:
-        conn.close()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

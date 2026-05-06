@@ -17,7 +17,7 @@ Built with React, Vite, and TypeScript, the Frontend provides a tactical command
 * **Componentry & State:** Designed with modularity using `framer-motion` for fluid transitions and `@tanstack/react-query` to maintain a globally synchronized state matching the fast-paced backend telemetry.
 
 ### 2. Backend Engine (`/Backend`)
-The Python-powered FastAPI backend relies on heavily optimized multi-agent workflows (powered by LangGraph) seamlessly interacting with PyTorch Geometric data structures and an event-sourcing SQLite database (which mirrors cloud structures for smooth production readiness).
+The Python-powered FastAPI backend relies on heavily optimized multi-agent workflows (powered by LangGraph) seamlessly interacting with PyTorch Geometric data structures and Firestore-backed event storage.
 * **Multi-Agent Orchestrator:** Agents run sequentially (Signal -> Assessment -> Routing -> RFQ/Audit), simulating OODA loop command execution.
 * **Graph Intelligence:** Replaces tabular row structures with dynamic network simulations. Local supplier nodes are evaluated alongside global catastrophic events dynamically mapping radial impact zones utilizing advanced isolated Spatial/Bounding Box optimizations to prevent runtime memory exhaustion.
 * **Enterprise Security & Tenancy:** Strict Role-Based Access Control (RBAC). A central policy engine segregates datasets ensuring a zero-trust model where data bleed between clients is completely eliminated, whilst allowing safe cross-tenant intelligence utilizing strict DUNS/LEI entity resolution intersections.

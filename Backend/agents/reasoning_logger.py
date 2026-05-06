@@ -19,7 +19,7 @@ def log_reasoning_step(
     output: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Append one reasoning row for the Agent Reasoning panel (Firestore subcollection or SQLite).
+    Append one reasoning row for the Agent Reasoning panel (Firestore subcollection).
     Also pushes the step via WebSocket for real-time dashboard updates.
     """
     now = datetime.now(timezone.utc)

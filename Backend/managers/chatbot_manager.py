@@ -24,7 +24,7 @@ from agents.governance import (
     validate_contract_output,
 )
 from agents.routing_agent import run_routing
-from services.local_store import upsert_orchestration_run
+from services.firestore_store import upsert_orchestration_run
 
 
 AGENT_STATUS_IDLE = "Idle"

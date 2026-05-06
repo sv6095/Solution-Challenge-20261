@@ -52,7 +52,7 @@ from agents.reasoning_logger import log_reasoning_step
 from services.firestore import read_context, read_reasoning_steps, read_workflow_event, write_context, write_workflow_event
 from services.data_registry import data_registry_health_report, disruption_snapshot, registry
 from services.firebase_auth import init_firebase_admin_app, verify_firebase_or_local_token
-from services.local_store import (
+from services.firestore_store import (
     add_audit,
     count_incidents_by_status,
     create_rfq_event,
@@ -66,7 +66,7 @@ from services.local_store import (
     get_user_by_id,
     get_workflow_report,
     get_workflow_event,
-    init_local_store,
+    init_store,
     insert_signal,
     list_audit,
     list_incidents,
@@ -143,7 +143,7 @@ from services.worldmonitor_fetcher import (
     get_shipping_indices, run_all_fetchers_once,
 )
 
-init_local_store()
+init_store()
 start_signal_scheduler()
 chatbot_manager = ChatbotManager()
 workflow_graph_manager = WorkflowGraphManager()
@@ -460,7 +460,10 @@ def _network_mode_availability(routes: list[dict[str, Any]]) -> dict[str, bool]:
 
 
 def _record_master_data_change(user_id: str, change_type: str, payload: dict[str, Any]) -> None:
-    append_master_data_change(user_id, change_type, payload)
+    try:
+        append_master_data_change(user_id, change_type, payload)
+    except Exception as exc:
+        logger.warning("Failed to record master data change for %s: %s", user_id, exc)
 
 
 def _resolve_customer_id_for_user(user_id: str) -> str:
@@ -914,7 +917,7 @@ async def health() -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "dataset": disruption_snapshot(),
         "dataset_health": data_registry_health_report(),
-        "fallbacks": {"state_store": "sqlite"},
+        "fallbacks": {"state_store": "firestore"},
         "xgboost_model_loaded": MODEL_PATH.exists(),
     }
 
@@ -991,10 +994,15 @@ async def api_auth_register(payload: RegisterRequest) -> dict:
 async def api_auth_profile(user_id: str, user=Depends(verify_firebase_or_local_token)) -> dict:
     """Return registration-time profile data so onboarding can auto-populate fields."""
     _assert_same_user(user, user_id)
-    from services.local_store import get_user_by_id
+    from services.firestore_store import get_user_by_id
     db_user = get_user_by_id(user_id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        return {
+            "user_id": user_id,
+            "email": str(user.get("email") or ""),
+            "full_name": str(user.get("name") or ""),
+            "company_name": "",
+        }
     return {
         "user_id": db_user["user_id"],
         "email": db_user["email"],
@@ -1071,7 +1079,11 @@ async def onboarding_complete(payload: OnboardingRequest, user=Depends(verify_fi
         
     scrubbed = _scrub_context(payload)
     scrubbed["master_data_version"] = int((scrubbed.get("master_data_version") or 0)) + 1
-    result = write_context(payload.user_id, scrubbed)
+    try:
+        result = write_context(payload.user_id, scrubbed)
+    except Exception as exc:
+        logger.exception("Failed to persist onboarding context for %s", payload.user_id)
+        raise HTTPException(status_code=503, detail="Unable to save onboarding context. Check backend storage configuration.") from exc
     _record_master_data_change(
         payload.user_id,
         "onboarding_context_update",
@@ -1082,7 +1094,10 @@ async def onboarding_complete(payload: OnboardingRequest, user=Depends(verify_fi
             "master_data_version": scrubbed["master_data_version"],
         },
     )
-    add_audit("onboarding_complete", payload.user_id)
+    try:
+        add_audit("onboarding_complete", payload.user_id)
+    except Exception as exc:
+        logger.warning("Failed to write onboarding audit for %s: %s", payload.user_id, exc)
     return {"status": "ok", **result}
 
 
@@ -2180,7 +2195,7 @@ async def api_audit_export() -> Response:
 async def api_settings_profile(request: Request, user=Depends(verify_firebase_or_local_token)) -> dict:
     user_id = str(user.get("sub") or "").strip()
     tenant_id = _resolved_request_tenant(user)
-    # Prefer Firestore if enabled, else SQLite.
+    # Load profile context from Firestore.
     fs = read_context(user_id)
     ctx: dict[str, Any] = {}
     if isinstance(fs, dict) and fs:
@@ -2211,7 +2226,7 @@ async def api_settings_profile_patch(payload: dict, request: Request, user=Depen
     if payload.get("user_id"):
         _assert_same_user(user, str(payload.get("user_id")))
 
-    # Load existing context (Firestore preferred, then SQLite) and merge.
+    # Load existing Firestore context and merge.
     fs = read_context(user_id)
     ctx: dict[str, Any] = {}
     if isinstance(fs, dict) and fs:
@@ -2230,7 +2245,7 @@ async def api_settings_profile_patch(payload: dict, request: Request, user=Depen
     ctx["operator_profile"] = profile
     ctx["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-    # Persist (SQLite always, Firestore if enabled).
+    # Persist to Firestore.
     write_context(user_id, ctx)
     add_audit("settings_profile_update", user_id)
     return await api_settings_profile(request)
@@ -2305,7 +2320,7 @@ async def api_onboarding_complete(payload: OnboardingRequest, user=Depends(verif
 @app.get("/api/contexts/{user_id}")
 async def api_context_get(user_id: str, user=Depends(verify_firebase_or_local_token)) -> dict:
     _assert_same_user(user, user_id)
-    # Prefer Firestore if enabled; fallback to SQLite.
+    # Load context from Firestore.
     fs = read_context(user_id)
     if isinstance(fs, dict) and fs:
         context = dict(fs)
@@ -2587,7 +2602,7 @@ from agents.autonomous_pipeline import (
     _severity_from_var,
 )
 from agents.monte_carlo_pipeline import run_monte_carlo_pipeline
-from services.local_store import (
+from services.firestore_store import (
     upsert_incident,
     get_incident,
     list_incidents,
@@ -3230,7 +3245,7 @@ async def api_post_action_dashboard(
     action_summary = action_summary_for_incident(incident_id)
 
     # Reasoning provenance
-    from services.local_store import list_reasoning_steps
+    from services.firestore_store import list_reasoning_steps
     reasoning = list_reasoning_steps(incident_id, limit=100)
 
     # Checkpoint state

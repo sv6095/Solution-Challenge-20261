@@ -273,7 +273,7 @@ class SupplyChainGraph:
 def build_graph_from_context(context: dict) -> SupplyChainGraph:
     """
     Build a SupplyChainGraph from the user's onboarding context
-    (stored in Firestore/SQLite).
+    (stored in Firestore).
     """
     graph = SupplyChainGraph()
 

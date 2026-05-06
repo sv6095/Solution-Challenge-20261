@@ -7,14 +7,16 @@ from services import firestore as firestore_service
 
 
 def effective_db_backend() -> str:
-    """firestore when enabled by env; otherwise sqlite (local_fallback.db / contexts table)."""
-    return "firestore" if firestore_service.is_firestore_enabled() else "sqlite"
+    """Return the configured backend. The application is Firestore-only."""
+    if not firestore_service.is_firestore_enabled():
+        raise RuntimeError("Firestore-only backend requires DB_PROVIDER=firestore")
+    return "firestore"
 
 
 class DatabaseProvider:
     """
     Single facade for persistence routing (Section 2).
-    Delegates to services.firestore helpers, which already dual-write context to SQLite when needed.
+    Delegates to services.firestore helpers.
     """
 
     @property

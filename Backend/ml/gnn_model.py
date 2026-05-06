@@ -29,7 +29,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -220,34 +219,26 @@ def _load_training_data_from_feedback() -> list[dict[str, Any]]:
         "event": {...},           # disruption event details
     }
     """
-    from services.local_store import DB_PATH
+    from services.firestore_store import get_incident
+    from services.governance_checkpoint import list_feedback
     
     samples = []
     try:
-        con = sqlite3.connect(DB_PATH)
-        con.row_factory = sqlite3.Row
-        
-        # Get all feedback records with incident details
-        rows = con.execute("""
-            SELECT gf.incident_id, gf.verdict, gf.affected_stage,
-                   i.payload_json
-            FROM governance_feedback gf
-            LEFT JOIN incidents i ON gf.incident_id = i.incident_id
-            WHERE gf.verdict IN ('TRUE_POSITIVE', 'FALSE_POSITIVE')
-            ORDER BY gf.created_at DESC
-            LIMIT 500
-        """).fetchall()
-        
+        # Training is tenant-scoped in Firestore; use the default tenant for bootstrap data.
+        rows = list_feedback("default", limit=500)
         for row in rows:
+            if row.get("verdict") not in {"TRUE_POSITIVE", "FALSE_POSITIVE"}:
+                continue
             try:
-                payload = json.loads(row["payload_json"] or "{}") if row["payload_json"] else {}
+                incident_id = str(row.get("incident_id") or "")
+                payload = get_incident(incident_id) or {}
                 affected_nodes = []
                 for node in payload.get("affected_nodes", []):
                     if isinstance(node, dict) and node.get("id"):
                         affected_nodes.append(node["id"])
                 
                 event_data = {
-                    "id": row["incident_id"],
+                    "id": incident_id,
                     "title": payload.get("event_title", ""),
                     "event_type": payload.get("event_type", ""),
                     "severity": float(payload.get("severity_raw", payload.get("severity", 5.0)) or 5.0),
@@ -258,15 +249,13 @@ def _load_training_data_from_feedback() -> list[dict[str, Any]]:
                 }
                 
                 samples.append({
-                    "incident_id": row["incident_id"],
-                    "verdict": row["verdict"],
+                    "incident_id": incident_id,
+                    "verdict": row.get("verdict"),
                     "affected_nodes": affected_nodes,
                     "event": event_data,
                 })
             except Exception:
                 continue
-        
-        con.close()
     except Exception:
         pass
     

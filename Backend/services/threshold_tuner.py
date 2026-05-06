@@ -21,12 +21,14 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from services.local_store import DB_PATH, add_audit
+from google.cloud import firestore as g_firestore
+
+from services.firestore_store import _client, add_audit
+from services.governance_checkpoint import list_feedback
 
 
 # ── Configuration ─────────────────────────────────────────────────────────────
@@ -108,32 +110,8 @@ class StageMetrics:
 # ── Schema migration ─────────────────────────────────────────────────────────
 
 def _ensure_tuning_schema() -> None:
-    """Create threshold_history table for audit trail of threshold changes."""
-    with sqlite3.connect(DB_PATH) as con:
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS threshold_history (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                tenant_id   TEXT NOT NULL,
-                stage       TEXT NOT NULL,
-                param       TEXT NOT NULL,
-                old_value   REAL NOT NULL,
-                new_value   REAL NOT NULL,
-                f1_before   REAL NOT NULL,
-                reason      TEXT NOT NULL,
-                created_at  TEXT NOT NULL
-            )
-        """)
-        con.execute("CREATE INDEX IF NOT EXISTS idx_th_tenant ON threshold_history(tenant_id, stage)")
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS tenant_thresholds (
-                tenant_id   TEXT NOT NULL,
-                stage       TEXT NOT NULL,
-                param       TEXT NOT NULL,
-                value       REAL NOT NULL,
-                updated_at  TEXT NOT NULL,
-                PRIMARY KEY (tenant_id, stage, param)
-            )
-        """)
+    """Firestore does not require runtime schema creation."""
+    _client()
 
 _ensure_tuning_schema()
 
@@ -142,13 +120,11 @@ _ensure_tuning_schema()
 
 def get_threshold(tenant_id: str, stage: str, param: str) -> float:
     """Get current threshold for a tenant's pipeline stage."""
-    with sqlite3.connect(DB_PATH) as con:
-        row = con.execute(
-            "SELECT value FROM tenant_thresholds WHERE tenant_id = ? AND stage = ? AND param = ?",
-            (tenant_id, stage, param),
-        ).fetchone()
-    if row:
-        return float(row[0])
+    doc = _client().collection("tenants").document(tenant_id).collection("thresholds").document(f"{stage}__{param}").get()
+    if doc.exists:
+        data = doc.to_dict() or {}
+        if data.get("value") is not None:
+            return float(data["value"])
     # Fall back to defaults
     return DEFAULT_THRESHOLDS.get(stage, {}).get(param, 0.5)
 
@@ -174,17 +150,24 @@ def _update_threshold(
 ) -> None:
     """Write updated threshold and log change."""
     now = datetime.now(timezone.utc).isoformat()
-    with sqlite3.connect(DB_PATH) as con:
-        con.execute(
-            """INSERT OR REPLACE INTO tenant_thresholds (tenant_id, stage, param, value, updated_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (tenant_id, stage, param, new_value, now),
-        )
-        con.execute(
-            """INSERT INTO threshold_history (tenant_id, stage, param, old_value, new_value, f1_before, reason, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (tenant_id, stage, param, old_value, new_value, f1_before, reason, now),
-        )
+    db = _client()
+    db.collection("tenants").document(tenant_id).collection("thresholds").document(f"{stage}__{param}").set({
+        "tenant_id": tenant_id,
+        "stage": stage,
+        "param": param,
+        "value": new_value,
+        "updated_at": now,
+    }, merge=True)
+    db.collection("tenants").document(tenant_id).collection("threshold_history").document().set({
+        "tenant_id": tenant_id,
+        "stage": stage,
+        "param": param,
+        "old_value": old_value,
+        "new_value": new_value,
+        "f1_before": f1_before,
+        "reason": reason,
+        "created_at": now,
+    })
     add_audit(
         "threshold_tuned",
         json.dumps({
@@ -203,18 +186,13 @@ def _update_threshold(
 
 def compute_stage_metrics(tenant_id: str) -> dict[str, StageMetrics]:
     """Compute precision/recall/F1 per pipeline stage from feedback data."""
-    with sqlite3.connect(DB_PATH) as con:
-        rows = con.execute(
-            """SELECT verdict, affected_stage FROM governance_feedback
-               WHERE tenant_id = ? AND verdict IN ('TRUE_POSITIVE', 'FALSE_POSITIVE', 'FALSE_NEGATIVE', 'UNCERTAIN')
-               ORDER BY created_at DESC LIMIT 1000""",
-            (tenant_id,),
-        ).fetchall()
-
     metrics: dict[str, StageMetrics] = {}
 
-    for verdict, stage in rows:
-        stage = stage or "unknown"
+    for row in list_feedback(tenant_id, limit=1000):
+        verdict = row.get("verdict")
+        stage = row.get("affected_stage") or "unknown"
+        if verdict not in {"TRUE_POSITIVE", "FALSE_POSITIVE", "FALSE_NEGATIVE", "UNCERTAIN"}:
+            continue
         if stage not in metrics:
             metrics[stage] = StageMetrics(stage=stage)
         m = metrics[stage]
@@ -384,20 +362,5 @@ def run_threshold_tuning(tenant_id: str) -> dict[str, Any]:
 
 def threshold_tuning_history(tenant_id: str, limit: int = 50) -> list[dict[str, Any]]:
     """Return history of threshold changes for a tenant."""
-    with sqlite3.connect(DB_PATH) as con:
-        rows = con.execute(
-            """SELECT stage, param, old_value, new_value, f1_before, reason, created_at
-               FROM threshold_history
-               WHERE tenant_id = ?
-               ORDER BY created_at DESC LIMIT ?""",
-            (tenant_id, limit),
-        ).fetchall()
-    return [
-        {
-            "stage": r[0], "param": r[1],
-            "old_value": r[2], "new_value": r[3],
-            "f1_before": r[4], "reason": r[5],
-            "created_at": r[6],
-        }
-        for r in rows
-    ]
+    rows = _client().collection("tenants").document(tenant_id).collection("threshold_history").order_by("created_at", direction=g_firestore.Query.DESCENDING).limit(limit).stream()
+    return [doc.to_dict() or {} for doc in rows]

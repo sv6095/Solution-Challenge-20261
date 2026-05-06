@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from .local_store import add_audit
+from .firestore_store import add_audit
 
 
 def send_fcm_notification(*, token: str | None, title: str, body: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -30,5 +30,5 @@ def send_fcm_notification(*, token: str | None, title: str, body: str, data: dic
         except Exception as exc:
             add_audit("fcm_send_failed", str(exc))
 
-    add_audit("fcm_local_fallback", str({"token_present": bool(token), "title": title, "body": body, "data": payload}))
+    add_audit("fcm_audit_fallback", str({"token_present": bool(token), "title": title, "body": body, "data": payload}))
     return {"status": "queued" if token else "skipped", "provider": "local-fallback", "token_present": bool(token), "title": title, "body": body, "data": payload}
