@@ -25,7 +25,7 @@ def init_firebase_admin_app() -> None:
 
     auth_provider = (os.getenv("AUTH_PROVIDER") or "local").strip().lower()
     firebase_enabled = os.getenv("FIRESTORE_ENABLED", "false").lower() == "true"
-    firebase_project = bool(os.getenv("FIREBASE_PROJECT_ID"))
+    firebase_project = bool((os.getenv("FIREBASE_PROJECT_ID") or "").strip())
     if auth_provider != "firebase" and not (firebase_enabled and firebase_project):
         _initialized = True
         return
@@ -139,7 +139,7 @@ def verify_firebase_or_local_token(
 
     auth_provider = (os.getenv("AUTH_PROVIDER") or "local").strip().lower()
     firebase_enabled = os.getenv("FIRESTORE_ENABLED", "false").lower() == "true"
-    firebase_project = bool(os.getenv("FIREBASE_PROJECT_ID"))
+    firebase_project = bool((os.getenv("FIREBASE_PROJECT_ID") or "").strip())
 
     # Route by JOSE alg so RS256 Firebase ID tokens are never passed to PyJWT HS256-only decode
     # (avoids misleading "The specified alg value is not allowed").

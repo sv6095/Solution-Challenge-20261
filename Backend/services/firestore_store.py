@@ -10,12 +10,29 @@ from uuid import uuid4
 from google.cloud import firestore as g_firestore
 
 
+def gcp_project_id() -> str | None:
+    """
+    Resolve GCP/Firebase project id for Firestore and related clients.
+
+    Strips whitespace and newlines. A stray newline in an env value (common when
+    pasting into hosting dashboards) makes gRPC metadata invalid and breaks Firestore commits.
+    """
+    for key in ("FIREBASE_PROJECT_ID", "GCP_PROJECT_ID", "GCLOUD_PROJECT", "GOOGLE_CLOUD_PROJECT"):
+        raw = os.getenv(key)
+        if not raw:
+            continue
+        cleaned = raw.strip()
+        if cleaned:
+            return cleaned
+    return None
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
 def _client() -> g_firestore.Client:
-    project = os.getenv("FIREBASE_PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or os.getenv("GCLOUD_PROJECT")
+    project = gcp_project_id()
     try:
         return g_firestore.Client(project=project)
     except Exception as exc:

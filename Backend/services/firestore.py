@@ -6,6 +6,7 @@ import os
 from google.cloud import firestore as g_firestore
 
 from .firestore_store import (
+    gcp_project_id,
     get_context as _get_context_row,
     get_workflow_checkpoint,
     get_workflow_event,
@@ -27,7 +28,7 @@ def _client() -> g_firestore.Client | None:
     if not is_firestore_enabled():
         raise RuntimeError("Firestore-only backend requires DB_PROVIDER=firestore")
     try:
-        return g_firestore.Client(project=os.getenv("FIREBASE_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
+        return g_firestore.Client(project=gcp_project_id())
     except Exception as exc:
         raise RuntimeError("Firestore client could not be initialized") from exc
 

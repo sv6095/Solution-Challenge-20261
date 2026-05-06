@@ -17,7 +17,7 @@ def get_secret(name: str, default: str = "") -> str:
     if value is not None and value != "":
         return value
 
-    project = os.getenv("GCP_PROJECT_ID")
+    project = (os.getenv("GCP_PROJECT_ID") or "").strip()
     if project:
         try:
             from google.cloud import secretmanager  # type: ignore[import]
