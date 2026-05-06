@@ -98,6 +98,18 @@ export function clearAuthSession(): void {
 
 let refreshPromise: Promise<string | null> | null = null;
 
+function isPublicPath(path: string): boolean {
+  return (
+    path === "/auth/login" ||
+    path === "/api/auth/login" ||
+    path === "/auth/register" ||
+    path === "/api/auth/register" ||
+    path === "/auth/refresh" ||
+    path === "/api/auth/refresh" ||
+    path === "/auth/google"
+  );
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
 
@@ -168,6 +180,9 @@ async function refreshAccessToken(): Promise<string | null> {
 async function request<T>(path: string, options?: RequestInit, retryOnAuthFailure = true): Promise<T> {
   const userId = getUserId();
   const token = getAccessToken();
+  if (!token && !isPublicPath(path)) {
+    throw new Error("Missing Bearer token. Please sign in again.");
+  }
   const callerHeaders = new Headers(options?.headers);
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
