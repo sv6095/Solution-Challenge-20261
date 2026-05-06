@@ -92,6 +92,10 @@ const OnboardingPage = (props: Props) => {
   // ── Auto-populate from registration data ──
   useEffect(() => {
     if (registrationLoaded) return;
+    if (!userId) {
+      setRegistrationLoaded(true);
+      return;
+    }
     api.auth
       .profile(userId)
       .then((reg) => {
@@ -109,6 +113,10 @@ const OnboardingPage = (props: Props) => {
   // ── Load existing onboarding context (edit mode / re-visit) ──
   useEffect(() => {
     if (prefilled) return;
+    if (!userId) {
+      setPrefilled(true);
+      return;
+    }
     api.contexts
       .get(userId)
       .then((res) => {

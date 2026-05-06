@@ -51,7 +51,7 @@ from services.llm_analysis import generate_workflow_analysis
 from agents.reasoning_logger import log_reasoning_step
 from services.firestore import read_context, read_reasoning_steps, read_workflow_event, write_context, write_workflow_event
 from services.data_registry import data_registry_health_report, disruption_snapshot, registry
-from services.firebase_auth import verify_firebase_or_local_token
+from services.firebase_auth import init_firebase_admin_app, verify_firebase_or_local_token
 from services.local_store import (
     add_audit,
     count_incidents_by_status,
@@ -129,7 +129,8 @@ workflow_graph_manager = WorkflowGraphManager()
 
 @app.on_event("startup")
 async def _start_worldmonitor_cron():
-    """Start worldmonitor background data fetcher as asyncio task."""
+    """Initialize Firebase Admin when configured; start worldmonitor background fetcher."""
+    init_firebase_admin_app()
     asyncio.create_task(worldmonitor_cron_loop())
 
 

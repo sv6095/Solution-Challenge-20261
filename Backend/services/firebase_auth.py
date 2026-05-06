@@ -1,11 +1,67 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Callable
 
+import jwt as pyjwt
 from fastapi import Header, HTTPException
 
 from .security import decode_token
+
+logger = logging.getLogger(__name__)
+
+_initialized = False
+
+
+def init_firebase_admin_app() -> None:
+    """
+    Initialize Firebase Admin once when verifying ID tokens or using Firestore-backed auth.
+    On Render, set GOOGLE_APPLICATION_CREDENTIALS to the mounted service account JSON path.
+    """
+    global _initialized
+    if _initialized:
+        return
+
+    auth_provider = (os.getenv("AUTH_PROVIDER") or "local").strip().lower()
+    firebase_enabled = os.getenv("FIRESTORE_ENABLED", "false").lower() == "true"
+    firebase_project = bool(os.getenv("FIREBASE_PROJECT_ID"))
+    if auth_provider != "firebase" and not (firebase_enabled and firebase_project):
+        _initialized = True
+        return
+
+    import firebase_admin
+    from firebase_admin import credentials
+
+    if firebase_admin._apps:
+        _initialized = True
+        return
+
+    cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    try:
+        if cred_path and os.path.isfile(cred_path):
+            firebase_admin.initialize_app(credentials.Certificate(cred_path))
+            logger.info("Firebase Admin initialized from service account file")
+        else:
+            firebase_admin.initialize_app()
+            logger.info("Firebase Admin initialized with application default credentials")
+    except Exception as exc:
+        if auth_provider == "firebase":
+            logger.exception("Firebase Admin failed to initialize; AUTH_PROVIDER=firebase requires valid credentials")
+            raise RuntimeError(
+                "AUTH_PROVIDER=firebase but Firebase Admin could not initialize. "
+                "On Render, mount a service account JSON and set GOOGLE_APPLICATION_CREDENTIALS to its path."
+            ) from exc
+        logger.warning("Firebase Admin could not initialize (Firestore may still use ADC): %s", exc)
+    _initialized = True
+
+
+def _token_signing_alg(token: str) -> str | None:
+    try:
+        alg = pyjwt.get_unverified_header(token).get("alg")
+        return str(alg).upper() if alg else None
+    except Exception:
+        return None
 
 
 def _verify_firebase_id_token(token: str) -> dict[str, Any]:
@@ -61,20 +117,23 @@ def verify_firebase_or_local_token(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     token = authorization.split(" ", 1)[1]
 
+    init_firebase_admin_app()
+
     auth_provider = (os.getenv("AUTH_PROVIDER") or "local").strip().lower()
     firebase_enabled = os.getenv("FIRESTORE_ENABLED", "false").lower() == "true"
     firebase_project = bool(os.getenv("FIREBASE_PROJECT_ID"))
 
-    # Build ordered verifiers. In mixed deployments, try both token families:
-    # - Firebase ID token (RS256)
-    # - Local JWT (HS256)
+    # Route by JOSE alg so RS256 Firebase ID tokens are never passed to PyJWT HS256-only decode
+    # (avoids misleading "The specified alg value is not allowed").
+    alg = _token_signing_alg(token)
     verifiers: list[tuple[str, Callable[[str], dict[str, Any]]]] = []
-    if auth_provider == "firebase":
+    if alg == "HS256":
+        verifiers.append(("local-jwt", decode_token))
+    elif alg == "RS256":
+        verifiers.append(("firebase-id-token", _verify_firebase_id_token))
+    elif auth_provider == "firebase" or (firebase_enabled and firebase_project):
         verifiers.append(("firebase-id-token", _verify_firebase_id_token))
         verifiers.append(("local-jwt", decode_token))
-    elif firebase_enabled and firebase_project:
-        verifiers.append(("local-jwt", decode_token))
-        verifiers.append(("firebase-id-token", _verify_firebase_id_token))
     else:
         verifiers.append(("local-jwt", decode_token))
 

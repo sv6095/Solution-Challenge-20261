@@ -1840,7 +1840,12 @@ export default function NetworkView() {
 
   /* ── User Context (Logistics Nodes) ────────────────────────── */
   const userId = useMemo(() => getUserId(), []);
-  const { data: ctxRaw } = useQuery({ queryKey:["user-context", userId], queryFn:()=>api.contexts.get(userId), staleTime:300_000 });
+  const { data: ctxRaw } = useQuery({
+    queryKey: ["user-context", userId],
+    queryFn: () => api.contexts.get(userId),
+    staleTime: 300_000,
+    enabled: Boolean(userId),
+  });
 
   const logisticsNodes = useMemo(() => {
     const nodes = (ctxRaw?.context?.logistics_nodes as any[]) ?? [];
