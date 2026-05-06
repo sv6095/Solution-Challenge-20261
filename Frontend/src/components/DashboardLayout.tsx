@@ -64,10 +64,13 @@ const DashboardLayout = () => {
   const tenantId = getUserId();  // tenant = user in single-tenant dev mode
   const { isConnected: wsConnected } = useWSQueryInvalidation(tenantId, queryClient);
 
+  const hasToken = Boolean(getAccessToken());
+
   const { data: incidentSummary } = useQuery({
     queryKey: ["incident-summary-nav"],
     queryFn: api.incidents.summary,
     refetchInterval: 20_000,
+    enabled: hasToken,
   });
 
   const { data: checkpointData } = useQuery({
@@ -78,6 +81,7 @@ const DashboardLayout = () => {
       return r.json();
     },
     refetchInterval: 30_000,
+    enabled: hasToken,
   });
 
   const critCount       = incidentSummary?.critical_count ?? 0;

@@ -1081,77 +1081,22 @@ const POOL_NEWS = [
 ];
 
 function YouTubeLivePlayer({ videoId, onUnavailable, overlay }: { videoId: string; onUnavailable: () => void; overlay: ReactNode }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<any>(null);
-  const cbRef = useRef(onUnavailable);
-
-  useEffect(() => { cbRef.current = onUnavailable; }, [onUnavailable]);
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    const initPlayer = () => {
-      if (!isMounted || !containerRef.current) return;
-      
-      const w = window as any;
-      playerRef.current = new w.YT.Player(containerRef.current, {
-        videoId: videoId,
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 1,
-          modestbranding: 1,
-          playsinline: 1,
-          rel: 0,
-          enablejsapi: 1,
-          origin: window.location.origin
-        },
-        events: {
-          onError: (event: any) => {
-            if ([2, 5, 100, 101, 150].includes(event.data)) {
-               cbRef.current();
-            }
-          },
-          onStateChange: (event: any) => {
-            if (event.data === 0) { // ENDED
-               cbRef.current();
-            }
-          }
-        }
-      });
-    };
-
-    const w = window as any;
-    if (w.YT && w.YT.Player) {
-      initPlayer();
-    } else {
-      if (!document.getElementById('youtube-iframe-api')) {
-        const tag = document.createElement('script');
-        tag.id = 'youtube-iframe-api';
-        tag.src = 'https://www.youtube.com/iframe_api';
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-      }
-
-      const prevOnReady = w.onYouTubeIframeAPIReady;
-      w.onYouTubeIframeAPIReady = () => {
-        if (prevOnReady) prevOnReady();
-        if (isMounted) initPlayer();
-      };
-    }
-
-    return () => {
-      isMounted = false;
-      if (playerRef.current && playerRef.current.destroy) {
-        try { playerRef.current.destroy(); } catch(e) {}
-      }
-    };
-  }, [videoId]);
+  void onUnavailable;
+  const embedSrc = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(
+    videoId,
+  )}?autoplay=1&mute=1&controls=1&playsinline=1&rel=0&modestbranding=1`;
 
   return (
     <div style={{ position:"relative", paddingTop:"56.25%", background:"#000", borderRadius:8, overflow:"hidden", border:"1px solid var(--border,#d4d4d4)", boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
       <div style={{ position:"absolute", inset:0, width:"100%", height:"100%", border:0, pointerEvents: "auto" }}>
-         <div ref={containerRef} />
+         <iframe
+            key={videoId}
+            src={embedSrc}
+            title={`YouTube Live ${videoId}`}
+            style={{ width: "100%", height: "100%", border: 0 }}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+          />
       </div>
       {overlay}
     </div>
