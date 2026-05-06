@@ -103,7 +103,22 @@ from services.event_bus import websocket_handler as ws_handler, connection_count
 from models.supply_graph import CustomerSupplyGraph
 
 app = FastAPI(title="SupplyShield API", version="0.2.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+_CORS_ORIGINS: list[str] = []
+_extra_origins = os.getenv("CORS_ORIGINS", "").strip()
+if _extra_origins:
+    _CORS_ORIGINS = [o.strip() for o in _extra_origins.split(",") if o.strip()]
+if not _CORS_ORIGINS:
+    _CORS_ORIGINS = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app" if _CORS_ORIGINS == ["*"] else None,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Request-Id"],
+)
 @app.websocket("/ws/{tenant_id}")
 async def websocket_endpoint(websocket: WebSocket, tenant_id: str):
     await ws_handler(websocket, tenant_id)

@@ -209,8 +209,11 @@ async function request<T>(path: string, options?: RequestInit, retryOnAuthFailur
       headers,
     });
   } catch {
+    const isDev = import.meta.env.DEV;
     throw new Error(
-      "Backend unreachable. Start FastAPI on 127.0.0.1:8000 or set VITE_API_URL to a live API base.",
+      isDev
+        ? "Backend unreachable. Start FastAPI on 127.0.0.1:8000 or set VITE_API_URL to a live API base."
+        : "Unable to reach the server. Please try again in a moment.",
     );
   }
   if (

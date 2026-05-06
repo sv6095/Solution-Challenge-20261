@@ -36,7 +36,7 @@ Data Sources (all free / no-key or free-tier)
     Finnhub          → market quotes
     EIA              → energy prices
     FRED             → macro indicators
-    OpenAQ           → air quality
+    OpenAQ           → air quality (requires OPENAQ_API_KEY on v3)
     AviationStack    → flight data
 
   Tier 2 — Optional / premium:
@@ -342,9 +342,10 @@ async def fetch_conflict_events():
 
 async def fetch_gdelt():
     """GDELT — global event database, supply chain relevant."""
+    # ArtList mode often rejects OR-compound queries with a non-JSON error body; keep a single broad phrase.
     url = (
         "https://api.gdeltproject.org/api/v2/doc/doc?"
-        "query=supply+chain+OR+sanctions+OR+trade+dispute+OR+port+blockade"
+        "query=supply+chain"
         "&mode=ArtList&maxrecords=50&format=json&timespan=3d"
     )
     async with httpx.AsyncClient() as c:
@@ -463,9 +464,11 @@ async def fetch_macro():
 
 async def fetch_air_quality():
     """OpenAQ — air quality for major port cities."""
+    if not OPENAQ_KEY:
+        return
     port_cities = ["Shanghai", "Rotterdam", "Singapore", "Shenzhen", "Dubai", "Houston", "Mumbai", "Lagos"]
     results = []
-    headers = {"X-API-Key": OPENAQ_KEY} if OPENAQ_KEY else {}
+    headers = {"X-API-Key": OPENAQ_KEY}
     async with httpx.AsyncClient(headers=headers) as c:
         for city in port_cities[:5]:
             url = f"https://api.openaq.org/v3/locations?city={city}&limit=1&parameters_id=2"
