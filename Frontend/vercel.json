@@ -5,20 +5,12 @@
       "headers": [
         {
           "key": "Cross-Origin-Opener-Policy",
-          "value": "same-origin-allow-popups"
+          "value": "unsafe-none"
         }
       ]
     }
   ],
   "rewrites": [
-    {
-      "source": "/__/auth/:path*",
-      "destination": "/api/firebase-host?__fb_seg=auth&__fb_path=:path*"
-    },
-    {
-      "source": "/__/firebase/:path*",
-      "destination": "/api/firebase-host?__fb_seg=firebase&__fb_path=:path*"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
