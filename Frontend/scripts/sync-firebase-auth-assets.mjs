@@ -38,6 +38,11 @@ const files = [
   ["__/firebase/init.json", "__/firebase/init.json"],
 ];
 
+const optionalPaths = new Set([
+  "__/auth/experiments.js",
+  "__/firebase/init.json",
+]);
+
 async function main() {
   for (const [urlPath, relOut] of files) {
     const url = `${base}/${urlPath}`;
@@ -45,7 +50,7 @@ async function main() {
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     const res = await fetch(url, { redirect: "follow" });
     if (!res.ok) {
-      if (urlPath.includes("experiments.js")) {
+      if (optionalPaths.has(urlPath)) {
         console.warn(`[sync-firebase-auth-assets] Optional ${urlPath} missing (${res.status}), skipping.`);
         continue;
       }
