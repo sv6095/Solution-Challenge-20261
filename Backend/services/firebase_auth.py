@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, Callable
 
 from fastapi import Header, HTTPException
 
@@ -61,21 +61,32 @@ def verify_firebase_or_local_token(
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     token = authorization.split(" ", 1)[1]
 
-    # ── Firebase ID token (AUTH_PROVIDER=firebase; verify with Admin SDK) ──────
-    if (os.getenv("AUTH_PROVIDER") or "local").strip().lower() == "firebase":
-        try:
-            return _verify_firebase_id_token(token)
-        except Exception as exc:
-            raise HTTPException(status_code=401, detail=f"Invalid or expired token: {exc}") from exc
-
-    # ── Legacy: HS256 JWT when Firestore is on but auth is not Firebase Admin ───
+    auth_provider = (os.getenv("AUTH_PROVIDER") or "local").strip().lower()
     firebase_enabled = os.getenv("FIRESTORE_ENABLED", "false").lower() == "true"
-    if firebase_enabled and os.getenv("FIREBASE_PROJECT_ID"):
-        payload = decode_token(token)
-        payload["source"] = "firebase-jwt"
-        return payload
+    firebase_project = bool(os.getenv("FIREBASE_PROJECT_ID"))
 
-    # ── Local HS256 JWT (email/password against local store) ──────────────────
-    payload = decode_token(token)
-    payload["source"] = "local-jwt"
-    return payload
+    # Build ordered verifiers. In mixed deployments, try both token families:
+    # - Firebase ID token (RS256)
+    # - Local JWT (HS256)
+    verifiers: list[tuple[str, Callable[[str], dict[str, Any]]]] = []
+    if auth_provider == "firebase":
+        verifiers.append(("firebase-id-token", _verify_firebase_id_token))
+        verifiers.append(("local-jwt", decode_token))
+    elif firebase_enabled and firebase_project:
+        verifiers.append(("local-jwt", decode_token))
+        verifiers.append(("firebase-id-token", _verify_firebase_id_token))
+    else:
+        verifiers.append(("local-jwt", decode_token))
+
+    last_exc: Exception | None = None
+    for source, verifier in verifiers:
+        try:
+            payload = verifier(token)
+            payload["source"] = source
+            return payload
+        except Exception as exc:
+            last_exc = exc
+            continue
+
+    detail = f"Invalid or expired token: {last_exc}" if last_exc else "Invalid or expired token"
+    raise HTTPException(status_code=401, detail=detail)

@@ -55,7 +55,7 @@ export function getRefreshToken(): string {
 }
 
 export function getUserId(): string {
-  return readStoredValue(USER_ID_KEY) || "local-user";
+  return readStoredValue(USER_ID_KEY);
 }
 
 export function getAuthPersistence(): AuthPersistence {
@@ -171,14 +171,16 @@ async function request<T>(path: string, options?: RequestInit, retryOnAuthFailur
   const callerHeaders = new Headers(options?.headers);
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
-  headers.set("X-User-Id", userId);
+  if (userId) {
+    headers.set("X-User-Id", userId);
+  }
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
   callerHeaders.forEach((value, key) => {
     headers.set(key, value);
   });
-  if (!headers.has("X-User-Id")) {
+  if (userId && !headers.has("X-User-Id")) {
     headers.set("X-User-Id", userId);
   }
   if (token && !headers.has("Authorization")) {
@@ -629,7 +631,7 @@ export const api = {
     login: (payload: AuthLoginRequest) =>
       request<AuthLoginResponse>("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
     profile: (userId: string) =>
-      request<AuthProfileResponse>(`/auth/profile/${encodeURIComponent(userId)}`),
+      request<AuthProfileResponse>(`/api/auth/profile/${encodeURIComponent(userId)}`),
   },
   onboarding: {
     complete: (payload: OnboardingCompleteRequest) =>
