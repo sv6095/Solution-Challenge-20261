@@ -46,6 +46,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from google.cloud import firestore as g_firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from services.firestore_store import _client, add_audit
 
@@ -162,7 +163,13 @@ def get_checkpoint_for_incident(incident_id: str, tenant_id: str | None = None) 
     """Return the most recent checkpoint for this incident."""
     db = _client()
     query = db.collection("tenants").document(tenant_id).collection("governance_checkpoints") if tenant_id else db.collection_group("governance_checkpoints")
-    rows = list(query.where("incident_id", "==", incident_id).order_by("created_at", direction=g_firestore.Query.DESCENDING).limit(1).stream())
+    rows = list(
+        query
+        .where(filter=FieldFilter("incident_id", "==", incident_id))
+        .order_by("created_at", direction=g_firestore.Query.DESCENDING)
+        .limit(1)
+        .stream()
+    )
     if not rows:
         return None
     return rows[0].to_dict() or {}
@@ -171,18 +178,21 @@ def get_checkpoint_for_incident(incident_id: str, tenant_id: str | None = None) 
 def list_pending_checkpoints(tenant_id: str, limit: int = 50) -> list[dict[str, Any]]:
     """Return all PENDING (non-expired) checkpoints for a tenant."""
     now = _now()
-    # Firestore requires order_by to match the inequality field (expires_at).
-    # Sorting by created_at is done in Python to avoid requiring a composite index.
+    # Query only by status to avoid a required composite index on (status, expires_at).
+    # We apply expiry filtering and created_at sorting in Python.
     rows = (
         _client()
         .collection("tenants")
         .document(tenant_id)
         .collection("governance_checkpoints")
-        .where("status", "==", "PENDING")
-        .where("expires_at", ">", now)
+        .where(filter=FieldFilter("status", "==", "PENDING"))
         .stream()
     )
-    docs = [doc.to_dict() or {} for doc in rows]
+    docs = []
+    for doc in rows:
+        payload = doc.to_dict() or {}
+        if str(payload.get("expires_at") or "") > now:
+            docs.append(payload)
     docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
     return docs[:limit]
 
@@ -279,7 +289,13 @@ def list_feedback(tenant_id: str, limit: int = 100) -> list[dict[str, Any]]:
 
 def feedback_for_incident(incident_id: str) -> list[dict[str, Any]]:
     """Return all feedback records for a specific incident."""
-    rows = _client().collection_group("governance_feedback").where("incident_id", "==", incident_id).order_by("created_at", direction=g_firestore.Query.DESCENDING).stream()
+    rows = (
+        _client()
+        .collection_group("governance_feedback")
+        .where(filter=FieldFilter("incident_id", "==", incident_id))
+        .order_by("created_at", direction=g_firestore.Query.DESCENDING)
+        .stream()
+    )
     return [doc.to_dict() or {} for doc in rows]
 
 
