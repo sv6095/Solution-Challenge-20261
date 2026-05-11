@@ -36,6 +36,7 @@ let _tenantId: string | null = null;
 let _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let _reconnectAttempt = 0;
 const MAX_RECONNECT_DELAY = 30_000;
+const CLIENT_PING_INTERVAL_MS = 20_000;
 
 function _getWsUrl(tenantId: string): string {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -99,8 +100,11 @@ function _connect(tenantId: string) {
 }
 
 function _scheduleReconnect(tenantId: string) {
+  if (_listeners.size === 0) return;
   if (_reconnectTimer) clearTimeout(_reconnectTimer);
-  const delay = Math.min(1000 * Math.pow(2, _reconnectAttempt), MAX_RECONNECT_DELAY);
+  const baseDelay = Math.min(1000 * Math.pow(2, _reconnectAttempt), MAX_RECONNECT_DELAY);
+  const jitter = Math.floor(Math.random() * 400);
+  const delay = baseDelay + jitter;
   _reconnectAttempt++;
   _reconnectTimer = setTimeout(() => _connect(tenantId), delay);
 }
@@ -149,7 +153,7 @@ export function useWebSocket(tenantId?: string | null) {
     }
 
     // Keepalive ping every 30s
-    const pingInterval = setInterval(_sendPing, 30_000);
+    const pingInterval = setInterval(_sendPing, CLIENT_PING_INTERVAL_MS);
 
     return () => {
       _listeners.delete(handler);

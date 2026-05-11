@@ -5,7 +5,7 @@ import {
   Crosshair, Network, AlertTriangle, Radar, Shield,
   Settings, Bell, ShieldAlert, Wifi, LogOut, User, Clock,
 } from "lucide-react";
-import { api, getAccessToken, getUserId, clearAuthSession } from "@/lib/api";
+import { api, getAccessToken, getUserId, getDisplayName, clearAuthSession } from "@/lib/api";
 import { useWSQueryInvalidation } from "@/hooks/use-websocket";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
@@ -61,7 +61,7 @@ const DashboardLayout = () => {
   const { data: incidentSummary } = useQuery({
     queryKey: ["incident-summary-nav"],
     queryFn: api.incidents.summary,
-    refetchInterval: 20_000,
+    refetchInterval: 60_000,
     enabled: hasToken,
   });
 
@@ -72,7 +72,7 @@ const DashboardLayout = () => {
       if (!r.ok) return { count: 0, pending: [] };
       return r.json();
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
     enabled: hasToken,
   });
 
@@ -89,7 +89,8 @@ const DashboardLayout = () => {
   }
 
   const userId       = getUserId();
-  const userInitial  = userId ? userId.charAt(0).toUpperCase() : "U";
+  const displayName  = getDisplayName() || userId;
+  const userInitial  = displayName ? displayName.charAt(0).toUpperCase() : "U";
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -273,7 +274,7 @@ const DashboardLayout = () => {
                   <p className="text-[10px] font-headline text-muted-foreground uppercase tracking-widest">
                     Signed in as
                   </p>
-                  <p className="text-xs font-medium text-foreground truncate">{userId || "—"}</p>
+                  <p className="text-xs font-medium text-foreground truncate">{displayName || "—"}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

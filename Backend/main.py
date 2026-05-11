@@ -100,6 +100,7 @@ from services.monte_carlo import simulate_incident_monte_carlo
 from services.intelligence_gap_tracker import build_intelligence_gap_report
 from services.threshold_tuner import run_threshold_tuning, get_all_thresholds, compute_stage_metrics, threshold_tuning_history
 from services.event_bus import websocket_handler as ws_handler, connection_count as ws_connection_count, broadcast as ws_broadcast
+from services.cache_provider import cache_get, cache_set
 from models.supply_graph import CustomerSupplyGraph
 
 app = FastAPI(title="SupplyShield API", version="0.2.0")
@@ -114,6 +115,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Request-Id"],
+    max_age=86400,  # Cache CORS preflight for 24h to reduce OPTIONS load.
 )
 @app.websocket("/ws/{tenant_id}")
 async def websocket_endpoint(websocket: WebSocket, tenant_id: str):
@@ -136,6 +138,22 @@ init_store()
 start_signal_scheduler()
 chatbot_manager = ChatbotManager()
 workflow_graph_manager = WorkflowGraphManager()
+
+
+def _set_cache_headers(response: Response, *, public: bool, max_age: int = 30) -> None:
+    scope = "public" if public else "private"
+    response.headers["Cache-Control"] = f"{scope}, max-age={max_age}"
+
+
+async def _cached_json(cache_key: str, ttl_seconds: int, producer) -> Any:
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
+    data = producer()
+    if asyncio.iscoroutine(data):
+        data = await data
+    await cache_set(cache_key, data, ttl_seconds=ttl_seconds)
+    return data
 
 
 @app.on_event("startup")
@@ -2621,32 +2639,39 @@ async def api_list_incidents(status: str | None = None, user=Depends(verify_fire
 
 
 @app.get("/api/incidents/summary")
-async def api_incidents_summary(user=Depends(verify_firebase_or_local_token)) -> dict:
+async def api_incidents_summary(response: Response, user=Depends(verify_firebase_or_local_token)) -> dict:
     """Summary counts for Command dashboard."""
+    _set_cache_headers(response, public=False, max_age=30)
     tenant_id = _resolved_request_tenant(user)
     resource_tenant = tenant_id
     _require_incident_permission(user, Permission.INCIDENT_READ, resource_tenant)
-    counts = count_incidents_by_status(tenant_id)
-    critical = len([
-        i for i in list_incidents(limit=500, tenant_id=tenant_id)
-        if i.get("severity") in ("CRITICAL", "HIGH")
-        and i.get("status") in ("DETECTED", "ANALYZED", "AWAITING_APPROVAL")
-    ])
-    watch = len([
-        i for i in list_incidents(limit=500, tenant_id=tenant_id)
-        if i.get("severity") in ("MODERATE",)
-        and i.get("status") in ("DETECTED", "ANALYZED")
-    ])
-    resolved = counts.get("RESOLVED", 0) + counts.get("AUTO_RESOLVED", 0) + counts.get("DISMISSED", 0)
-    total_nodes = len(_context_suppliers_or_empty(str(user.get("sub") or "").strip()))
-    return {
-        "critical_count": critical,
-        "watch_count": watch,
-        "resolved_count": resolved,
-        "nominal_nodes": max(0, total_nodes - critical - watch),
-        "total_nodes": total_nodes,
-        "status_breakdown": counts,
-    }
+    cache_key = f"api:incidents:summary:{tenant_id}"
+
+    def _compute() -> dict[str, Any]:
+        counts = count_incidents_by_status(tenant_id)
+        incidents = list_incidents(limit=500, tenant_id=tenant_id)
+        critical = len([
+            i for i in incidents
+            if i.get("severity") in ("CRITICAL", "HIGH")
+            and i.get("status") in ("DETECTED", "ANALYZED", "AWAITING_APPROVAL")
+        ])
+        watch = len([
+            i for i in incidents
+            if i.get("severity") in ("MODERATE",)
+            and i.get("status") in ("DETECTED", "ANALYZED")
+        ])
+        resolved = counts.get("RESOLVED", 0) + counts.get("AUTO_RESOLVED", 0) + counts.get("DISMISSED", 0)
+        total_nodes = len(_context_suppliers_or_empty(str(user.get("sub") or "").strip()))
+        return {
+            "critical_count": critical,
+            "watch_count": watch,
+            "resolved_count": resolved,
+            "nominal_nodes": max(0, total_nodes - critical - watch),
+            "total_nodes": total_nodes,
+            "status_breakdown": counts,
+        }
+
+    return await _cached_json(cache_key, 30, _compute)
 
 
 @app.get("/api/incidents/{incident_id}")
@@ -3016,46 +3041,68 @@ async def api_decision_authority(incident_id: str, user=Depends(verify_firebase_
 
 
 @app.get("/api/command/briefing")
-async def api_command_briefing(user=Depends(verify_firebase_or_local_token)) -> dict:
+async def api_command_briefing(response: Response, user=Depends(verify_firebase_or_local_token)) -> dict:
     """
     The Command dashboard data — everything in one call.
     This is what the user sees when they open the app.
     """
-    summary = await api_incidents_summary(user=user)
+    _set_cache_headers(response, public=False, max_age=30)
     tenant_id = _resolved_request_tenant(user)
-    all_incidents = list_incidents(limit=100, tenant_id=tenant_id)
-    critical_incidents = [
-        i for i in all_incidents
-        if i.get("severity") in ("CRITICAL", "HIGH")
-        and i.get("status") in ("DETECTED", "ANALYZED", "AWAITING_APPROVAL")
-    ]
-    watch_incidents = [
-        i for i in all_incidents
-        if i.get("severity") in ("MODERATE",)
-        and i.get("status") in ("DETECTED", "ANALYZED")
-    ]
-    recent_resolved = [
-        i for i in all_incidents
-        if i.get("status") in ("RESOLVED", "APPROVED", "DISMISSED")
-    ][:5]
+    cache_key = f"api:command:briefing:{tenant_id}"
 
-    # Network health
-    suppliers = _context_suppliers_or_empty(str(user.get("sub") or "").strip())
-    exposure_scores = [s["exposureScore"] for s in suppliers]
-    avg_exposure = sum(exposure_scores) / max(1, len(exposure_scores))
+    def _compute() -> dict[str, Any]:
+        all_incidents = list_incidents(limit=100, tenant_id=tenant_id)
+        summary_incidents = list_incidents(limit=500, tenant_id=tenant_id)
+        counts = count_incidents_by_status(tenant_id)
+        critical_count = len([
+            i for i in summary_incidents
+            if i.get("severity") in ("CRITICAL", "HIGH")
+            and i.get("status") in ("DETECTED", "ANALYZED", "AWAITING_APPROVAL")
+        ])
+        watch_count = len([
+            i for i in summary_incidents
+            if i.get("severity") in ("MODERATE",)
+            and i.get("status") in ("DETECTED", "ANALYZED")
+        ])
+        resolved_count = counts.get("RESOLVED", 0) + counts.get("AUTO_RESOLVED", 0) + counts.get("DISMISSED", 0)
+        critical_incidents = [
+            i for i in all_incidents
+            if i.get("severity") in ("CRITICAL", "HIGH")
+            and i.get("status") in ("DETECTED", "ANALYZED", "AWAITING_APPROVAL")
+        ]
+        watch_incidents = [
+            i for i in all_incidents
+            if i.get("severity") in ("MODERATE",)
+            and i.get("status") in ("DETECTED", "ANALYZED")
+        ]
+        recent_resolved = [
+            i for i in all_incidents
+            if i.get("status") in ("RESOLVED", "APPROVED", "DISMISSED")
+        ][:5]
 
-    return {
-        **summary,
-        "critical_incidents": critical_incidents,
-        "watch_incidents": watch_incidents,
-        "recent_resolved": recent_resolved,
-        "network_health": {
+        suppliers = _context_suppliers_or_empty(str(user.get("sub") or "").strip())
+        exposure_scores = [s["exposureScore"] for s in suppliers]
+        avg_exposure = sum(exposure_scores) / max(1, len(exposure_scores))
+
+        return {
+            "critical_count": critical_count,
+            "watch_count": watch_count,
+            "resolved_count": resolved_count,
+            "nominal_nodes": max(0, len(suppliers) - critical_count - watch_count),
             "total_nodes": len(suppliers),
-            "avg_exposure": round(avg_exposure, 1),
-            "critical_nodes": len([s for s in suppliers if s["exposureScore"] >= 75]),
-            "healthy_nodes": len([s for s in suppliers if s["exposureScore"] < 40]),
-        },
-    }
+            "status_breakdown": counts,
+            "critical_incidents": critical_incidents,
+            "watch_incidents": watch_incidents,
+            "recent_resolved": recent_resolved,
+            "network_health": {
+                "total_nodes": len(suppliers),
+                "avg_exposure": round(avg_exposure, 1),
+                "critical_nodes": len([s for s in suppliers if s["exposureScore"] >= 75]),
+                "healthy_nodes": len([s for s in suppliers if s["exposureScore"] < 40]),
+            },
+        }
+
+    return await _cached_json(cache_key, 30, _compute)
 
 
 # ---------------------------------------------------------------------------
@@ -3354,118 +3401,203 @@ async def api_replay_history(user=Depends(verify_firebase_or_local_token)) -> di
 # No auth required (public intelligence layer)
 # ===========================================================================
 
+async def _cached_global_response(response: Response, suffix: str, producer, ttl_seconds: int = 60) -> Any:
+    _set_cache_headers(response, public=True, max_age=30)
+    return await _cached_json(f"api:global:{suffix}", ttl_seconds, producer)
+
+
 @app.get("/api/global/hazards")
-async def api_global_hazards():
+async def api_global_hazards(response: Response):
     """Natural hazards: wildfires, storms, floods (NASA EONET)."""
-    return {"data": get_natural_hazards(), "source": "NASA EONET"}
+    return await _cached_global_response(
+        response,
+        "hazards",
+        lambda: {"data": get_natural_hazards(), "source": "NASA EONET"},
+    )
 
 
 @app.get("/api/global/earthquakes")
-async def api_global_earthquakes():
+async def api_global_earthquakes(response: Response):
     """Earthquake feed M4.5+ worldwide (USGS)."""
-    return {"data": get_earthquakes(), "source": "USGS"}
+    return await _cached_global_response(
+        response,
+        "earthquakes",
+        lambda: {"data": get_earthquakes(), "source": "USGS"},
+    )
 
 
 @app.get("/api/global/conflict")
-async def api_global_conflict():
+async def api_global_conflict(response: Response):
     """Armed conflict and protest events (ACLED)."""
-    return {"data": get_conflict_events(), "source": "ACLED"}
+    return await _cached_global_response(
+        response,
+        "conflict",
+        lambda: {"data": get_conflict_events(), "source": "ACLED"},
+    )
 
 
 @app.get("/api/global/gdelt")
-async def api_global_gdelt():
+async def api_global_gdelt(response: Response):
     """Geopolitical event articles (GDELT)."""
-    return {"data": get_gdalt_events(), "source": "GDELT"}
+    return await _cached_global_response(
+        response,
+        "gdelt",
+        lambda: {"data": get_gdalt_events(), "source": "GDELT"},
+        ttl_seconds=120,
+    )
 
 
 @app.get("/api/global/disasters")
-async def api_global_disasters():
+async def api_global_disasters(response: Response):
     """Global disaster alerts (GDACS)."""
-    return {"data": get_gdacs_alerts(), "source": "GDACS"}
+    return await _cached_global_response(
+        response,
+        "disasters",
+        lambda: {"data": get_gdacs_alerts(), "source": "GDACS"},
+    )
 
 
 @app.get("/api/global/news/supply-chain")
-async def api_global_supply_chain_news():
+async def api_global_supply_chain_news(response: Response):
     """Supply-chain focused news headlines (NewsAPI)."""
-    return {"data": get_supply_chain_news(), "source": "NewsAPI"}
+    return await _cached_global_response(
+        response,
+        "news-supply-chain",
+        lambda: {"data": get_supply_chain_news(), "source": "NewsAPI"},
+    )
 
 
 @app.get("/api/global/market/quotes")
-async def api_global_market_quotes():
+async def api_global_market_quotes(response: Response):
     """Equity quotes for shipping/logistics bellwethers (Finnhub)."""
-    return {"data": get_market_quotes(), "source": "Finnhub"}
+    return await _cached_global_response(
+        response,
+        "market-quotes",
+        lambda: {"data": get_market_quotes(), "source": "Finnhub"},
+    )
 
 
 @app.get("/api/global/energy")
-async def api_global_energy():
+async def api_global_energy(response: Response):
     """US crude inventories, natural gas storage (EIA)."""
-    return {"data": get_energy_prices(), "source": "EIA"}
+    return await _cached_global_response(
+        response,
+        "energy",
+        lambda: {"data": get_energy_prices(), "source": "EIA"},
+    )
 
 
 @app.get("/api/global/macro")
-async def api_global_macro():
+async def api_global_macro(response: Response):
     """Macro indicators: CPI, PMI, unemployment (FRED)."""
-    return {"data": get_macro_indicators(), "source": "FRED"}
+    return await _cached_global_response(
+        response,
+        "macro",
+        lambda: {"data": get_macro_indicators(), "source": "FRED"},
+    )
 
 
 @app.get("/api/global/chokepoints")
-async def api_global_chokepoints():
+async def api_global_chokepoints(response: Response):
     """Live-scored supply chain chokepoint risk (composite)."""
-    return {"data": get_chokepoint_status(), "source": "Praecantator"}
+    return await _cached_global_response(
+        response,
+        "chokepoints",
+        lambda: {"data": get_chokepoint_status(), "source": "Praecantator"},
+    )
 
 
 @app.get("/api/global/shipping/stress")
-async def api_global_shipping_stress():
+async def api_global_shipping_stress(response: Response):
     """Shipping stress index and carrier risk levels."""
-    return get_shipping_stress()
+    return await _cached_global_response(
+        response,
+        "shipping-stress",
+        get_shipping_stress,
+    )
 
 
 @app.get("/api/global/shipping/indices")
-async def api_global_shipping_indices():
+async def api_global_shipping_indices(response: Response):
     """Reference shipping index metadata (SCFI, BDI, WCI, etc.)."""
-    return {"data": get_shipping_indices()}
+    return await _cached_global_response(
+        response,
+        "shipping-indices",
+        lambda: {"data": get_shipping_indices()},
+        ttl_seconds=300,
+    )
 
 
 @app.get("/api/global/country-instability")
-async def api_global_country_instability():
+async def api_global_country_instability(response: Response):
     """Country instability ranked list (ACLED + EONET aggregate)."""
-    return {"data": get_country_instability()}
+    return await _cached_global_response(
+        response,
+        "country-instability",
+        lambda: {"data": get_country_instability()},
+    )
 
 
 @app.get("/api/global/strategic-risk")
-async def api_global_strategic_risk():
+async def api_global_strategic_risk(response: Response):
     """Composite global strategic risk score (0-100) and level."""
-    return get_strategic_risk()
+    return await _cached_global_response(
+        response,
+        "strategic-risk",
+        get_strategic_risk,
+    )
 
 
 @app.get("/api/global/market-implications")
-async def api_global_market_implications():
+async def api_global_market_implications(response: Response):
     """AI-generated market implications from active disruptions."""
-    return get_market_implications()
+    return await _cached_global_response(
+        response,
+        "market-implications",
+        get_market_implications,
+        ttl_seconds=120,
+    )
 
 
 @app.get("/api/global/fires")
-async def api_global_fires():
+async def api_global_fires(response: Response):
     """Active fire detections (NASA FIRMS satellite)."""
-    return {"data": get_active_fires(), "source": "NASA FIRMS"}
+    return await _cached_global_response(
+        response,
+        "fires",
+        lambda: {"data": get_active_fires(), "source": "NASA FIRMS"},
+    )
 
 
 @app.get("/api/global/aviation")
-async def api_global_aviation():
+async def api_global_aviation(response: Response):
     """Live cargo flight data for major hubs (AviationStack)."""
-    return {"data": get_aviation_intel(), "source": "AviationStack"}
+    return await _cached_global_response(
+        response,
+        "aviation",
+        lambda: {"data": get_aviation_intel(), "source": "AviationStack"},
+    )
 
 
 @app.get("/api/global/air-quality")
-async def api_global_air_quality():
+async def api_global_air_quality(response: Response):
     """Air quality index for major port cities (OpenAQ)."""
-    return {"data": get_air_quality(), "source": "OpenAQ"}
+    return await _cached_global_response(
+        response,
+        "air-quality",
+        lambda: {"data": get_air_quality(), "source": "OpenAQ"},
+    )
 
 
 @app.get("/api/global/minerals")
-async def api_global_minerals():
+async def api_global_minerals(response: Response):
     """Critical mineral supply risk reference data."""
-    return {"data": get_critical_minerals()}
+    return await _cached_global_response(
+        response,
+        "minerals",
+        lambda: {"data": get_critical_minerals()},
+        ttl_seconds=300,
+    )
 
 
 @app.post("/api/global/refresh")
@@ -3476,19 +3608,69 @@ async def api_global_refresh(user=Depends(verify_firebase_or_local_token)):
 
 
 @app.get("/api/global/summary")
-async def api_global_summary():
+async def api_global_summary(response: Response):
     """Aggregate summary panel combining all worldmonitor data feeds."""
-    return {
-        "strategic_risk": get_strategic_risk(),
-        "shipping_stress": get_shipping_stress(),
-        "chokepoints": get_chokepoint_status()[:5],
-        "top_instability": get_country_instability()[:10],
-        "market_implications": get_market_implications(),
-        "active_hazards": len(get_natural_hazards()),
-        "active_fires": len(get_active_fires()),
-        "conflict_events": len(get_conflict_events()),
-        "minerals": get_critical_minerals(),
-    }
+    return await _cached_global_response(
+        response,
+        "summary",
+        lambda: {
+            "strategic_risk": get_strategic_risk(),
+            "shipping_stress": get_shipping_stress(),
+            "chokepoints": get_chokepoint_status()[:5],
+            "top_instability": get_country_instability()[:10],
+            "market_implications": get_market_implications(),
+            "active_hazards": len(get_natural_hazards()),
+            "active_fires": len(get_active_fires()),
+            "conflict_events": len(get_conflict_events()),
+            "minerals": get_critical_minerals(),
+        },
+    )
+
+
+@app.get("/api/global/dashboard-bundle")
+async def api_global_dashboard_bundle(response: Response):
+    """
+    Aggregated worldmonitor payload for dashboard screens.
+    Replaces many small calls with a single response to reduce overhead.
+    """
+    return await _cached_global_response(
+        response,
+        "dashboard-bundle",
+        lambda: {
+            "summary": {
+                "strategic_risk": get_strategic_risk(),
+                "shipping_stress": get_shipping_stress(),
+                "chokepoints": get_chokepoint_status()[:5],
+                "top_instability": get_country_instability()[:10],
+                "market_implications": get_market_implications(),
+                "active_hazards": len(get_natural_hazards()),
+                "active_fires": len(get_active_fires()),
+                "conflict_events": len(get_conflict_events()),
+                "minerals": get_critical_minerals(),
+            },
+            "hazards": {"data": get_natural_hazards(), "source": "NASA EONET"},
+            "earthquakes": {"data": get_earthquakes(), "source": "USGS"},
+            "conflict": {"data": get_conflict_events(), "source": "ACLED"},
+            "gdelt": {"data": get_gdalt_events(), "source": "GDELT"},
+            "disasters": {"data": get_gdacs_alerts(), "source": "GDACS"},
+            "news": {"data": get_supply_chain_news(), "source": "NewsAPI"},
+            "market_quotes": {"data": get_market_quotes(), "source": "Finnhub"},
+            "energy": {"data": get_energy_prices(), "source": "EIA"},
+            "macro": {"data": get_macro_indicators(), "source": "FRED"},
+            "chokepoints": {"data": get_chokepoint_status(), "source": "Praecantator"},
+            "shipping_stress": get_shipping_stress(),
+            "shipping_indices": {"data": get_shipping_indices()},
+            "country_instability": {"data": get_country_instability()},
+            "strategic_risk": get_strategic_risk(),
+            "market_implications": get_market_implications(),
+            "fires": {"data": get_active_fires(), "source": "NASA FIRMS"},
+            "aviation": {"data": get_aviation_intel(), "source": "AviationStack"},
+            "air_quality": {"data": get_air_quality(), "source": "OpenAQ"},
+            "minerals": {"data": get_critical_minerals()},
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        },
+        ttl_seconds=60,
+    )
 
 
 # ── WebSocket Real-Time Push (Gap 4) ──────────────────────────────────────────

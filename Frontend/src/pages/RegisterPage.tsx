@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
 import { api } from "@/lib/api";
+import { getFirebaseAuth, hasFirebaseAuthConfig } from "@/lib/firebase";
+import {
+  completeGoogleOAuthSession,
+  firebaseAuthErrorMessage,
+} from "@/lib/firebaseRedirect";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -10,6 +15,7 @@ const RegisterPage = () => {
     fullName: "", company: "", email: "", password: "", confirmPassword: "", agreed: false,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
   const getStrength = (pw: string) => {
     if (pw.length < 6) return { label: "Weak", color: "bg-sentinel", width: "w-1/3" };
@@ -46,6 +52,31 @@ const RegisterPage = () => {
       toast.error("Registration failed. Email may already be registered.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onGoogleSignUp = async () => {
+    if (!hasFirebaseAuthConfig || !getFirebaseAuth()) {
+      toast.error(
+        "Firebase Auth is not configured. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, PROJECT_ID, APP_ID, and redeploy.",
+      );
+      return;
+    }
+
+    setGoogleSubmitting(true);
+    try {
+      const { GoogleAuthProvider, signInWithPopup } = await import("firebase/auth");
+      const auth = getFirebaseAuth()!;
+      const provider = new GoogleAuthProvider();
+      provider.addScope("profile");
+      provider.addScope("email");
+      provider.setCustomParameters({ prompt: "select_account" });
+      const cred = await signInWithPopup(auth, provider);
+      await completeGoogleOAuthSession(cred.user, navigate, { rememberMe: true });
+    } catch (err) {
+      toast.error(firebaseAuthErrorMessage(err));
+    } finally {
+      setGoogleSubmitting(false);
     }
   };
 
@@ -159,8 +190,13 @@ const RegisterPage = () => {
             <div className="flex-1 h-px bg-border" />
           </div>
 
-          <button className="w-full glass-panel py-3 rounded-sm font-medium flex items-center justify-center gap-3 hover:bg-slate-50 transition-colors uppercase tracking-widest">
-            🔐 Enterprise SSO
+          <button
+            type="button"
+            onClick={() => void onGoogleSignUp()}
+            disabled={submitting || googleSubmitting}
+            className="w-full glass-panel py-3 rounded-sm font-medium flex items-center justify-center gap-3 hover:bg-slate-50 transition-colors uppercase tracking-widest disabled:opacity-60"
+          >
+            {googleSubmitting ? "Signing up…" : "🔐 Google Sign-Up"}
           </button>
 
           <p className="text-center text-body-md text-slate-600 mt-5">

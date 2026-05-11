@@ -1227,9 +1227,20 @@ const ptCssStatic = { fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", co
 const pbCssStatic = { padding: "12px", flex: 1, display: "flex", flexDirection: "column" as const, overflowY: "auto" as const, background: "var(--bg,#f8f9fa)" };
 const thStatic = { padding: "8px 6px", fontSize: 10, color: "var(--text-muted,#737373)", textTransform: "uppercase" as const, fontWeight: 700, letterSpacing: "0.06em", fontFamily: "var(--font-headline)", borderBottom: "1px solid var(--panel-border,#d4d4d4)", whiteSpace: "nowrap" as const };
 const tdStatic = { padding: "8px 6px", borderBottom: "1px solid var(--border-subtle,#e5e5e5)", verticalAlign: "middle" };
+const GLOBAL_BUNDLE_REFETCH_MS = 300_000;
+
+function useGlobalDashboardBundle() {
+  return useQuery({
+    queryKey: ["globalDashboardBundle"],
+    queryFn: () => api.global.dashboardBundle(),
+    refetchInterval: GLOBAL_BUNDLE_REFETCH_MS,
+    staleTime: 30_000,
+  });
+}
 
 function AiMarketImplicationsPanel({ title }: { title?: string }) {
-  const { data, isLoading } = useQuery({ queryKey: ["marketImplications"], queryFn: () => api.global.marketImplications(), refetchInterval: 60000 });
+  const { data: bundle, isLoading } = useGlobalDashboardBundle();
+  const data = bundle?.market_implications;
 
   if (isLoading) return (
     <div style={panelCssStatic}>
@@ -1305,7 +1316,8 @@ function PolymarketPrediction() {
 }
 
 function MarketWatchlist() {
-  const { data: quotesData } = useQuery({ queryKey: ["marketQuotes"], queryFn: () => api.global.marketQuotes(), refetchInterval: 60000 });
+  const { data: bundle } = useGlobalDashboardBundle();
+  const quotesData = bundle?.market_quotes;
   const quotes = quotesData?.data?.length ? quotesData.data.slice(0, 5) : [
     { symbol: "S&P 500", price: 5765.41, change: 0.88, change_pct: 0.88 },
     { symbol: "NASDAQ", price: 24037, change: 1.63, change_pct: 1.63 },
@@ -1337,7 +1349,8 @@ function MarketWatchlist() {
 }
 
 function MacroStress() {
-  const { data: macroData } = useQuery({ queryKey: ["macro"], queryFn: () => api.global.macro(), refetchInterval: 60000 });
+  const { data: bundle } = useGlobalDashboardBundle();
+  const macroData = bundle?.macro;
   const macros = macroData?.data || {};
   const vix = macros["VIX"]?.value || "19.31";
   const fedFunds = macros["FEDFUNDS"]?.value || "3.64";
@@ -1376,7 +1389,8 @@ function MacroStress() {
 }
 
 function EnergyComplex() {
-  const { data: energyData } = useQuery({ queryKey: ["energy"], queryFn: () => api.global.energy(), refetchInterval: 60000 });
+  const { data: bundle } = useGlobalDashboardBundle();
+  const energyData = bundle?.energy;
   const eData = energyData?.data || {};
   
   // EIA often returns an array or an object with a 'value' property
@@ -1554,7 +1568,8 @@ function EnergyDisruptionsLog() {
 }
 
 function ThinkTanksPanel() {
-  const { data: newsData } = useQuery({ queryKey: ["supplyChainNews"], queryFn: () => api.global.supplyChainNews(), refetchInterval: 60000 });
+  const { data: bundle } = useGlobalDashboardBundle();
+  const newsData = bundle?.news;
   const articles = newsData?.data?.length ? newsData.data.slice(0, 3) : [
     { title: "America Should Be Israel's Partner, Not Its Patron", source: "Foreign Affairs", publishedAt: new Date().toISOString() },
     { title: "North Korea as It Is", source: "Foreign Affairs", publishedAt: new Date().toISOString() },
@@ -1576,7 +1591,8 @@ function ThinkTanksPanel() {
 }
 
 function CrossSourceSignalAggregator() {
-  const { data: conflictData } = useQuery({ queryKey: ["conflict"], queryFn: () => api.global.conflict(), refetchInterval: 60000 });
+  const { data: bundle } = useGlobalDashboardBundle();
+  const conflictData = bundle?.conflict;
   const events = conflictData?.data?.length ? conflictData.data.slice(0, 2) : [
     { type: 'MIL FLTX', severity: 'CRITICAL', region: 'Global', title: 'Military flight surge', time: '57m ago' }
   ];
@@ -1641,7 +1657,8 @@ function InfrastructureCascade() {
 
 function MetalsAndMaterialsPanel() {
   const [view, setView] = useState<'commodities' | 'fx'>('commodities');
-  const { data: mineralsData } = useQuery({ queryKey: ["minerals"], queryFn: () => api.global.minerals(), refetchInterval: 60000 });
+  const { data: bundle } = useGlobalDashboardBundle();
+  const mineralsData = bundle?.minerals;
   const minerals = mineralsData?.data?.length ? mineralsData.data.slice(0, 3) : [
     { id: "gold", name: "GOLD", primary_producer: "China", share_pct: 12 },
     { id: "silver", name: "SILVER", primary_producer: "Mexico", share_pct: 21 },
@@ -1765,21 +1782,7 @@ export default function NetworkView() {
   /* ── Data queries ───────────────────────────────────────────── */
   const { data: suppRaw = [] }  = useQuery({ queryKey:["risks","suppliers"], queryFn:()=>api.risks.suppliers(), staleTime:300_000 });
   const { data: evtsRaw = [] }  = useQuery({ queryKey:["risks","events"],   queryFn:()=>api.risks.events(),   staleTime:120_000 });
-  const { data: hazRaw }        = useQuery({ queryKey:["g","haz"],  queryFn:()=>api.global.hazards(),      staleTime:300_000 });
-  const { data: quakeRaw }      = useQuery({ queryKey:["g","quake"],queryFn:()=>api.global.earthquakes(),  staleTime:300_000 });
-  const { data: conflRaw }      = useQuery({ queryKey:["g","conf"], queryFn:()=>api.global.conflict(),     staleTime:300_000 });
-  const { data: fireRaw }       = useQuery({ queryKey:["g","fires"],queryFn:()=>api.global.fires(),        staleTime:600_000 });
-  const { data: chopRaw }       = useQuery({ queryKey:["g","chop"], queryFn:()=>api.global.chokepoints(),  staleTime:120_000 });
-  const { data: stressRaw }     = useQuery({ queryKey:["g","stress"],queryFn:()=>api.global.shippingStress(), staleTime:120_000 });
-  const { data: sriskRaw }      = useQuery({ queryKey:["g","srisk"], queryFn:()=>api.global.strategicRisk(), staleTime:120_000 });
-  const { data: newsRaw }       = useQuery({ queryKey:["g","news"],  queryFn:()=>api.global.supplyChainNews(), staleTime:300_000 });
-  const { data: quotesRaw }     = useQuery({ queryKey:["g","quotes"],queryFn:()=>api.global.marketQuotes(), staleTime:60_000 });
-  const { data: mineralsRaw }   = useQuery({ queryKey:["g","minerals"],queryFn:()=>api.global.minerals(), staleTime:600_000 });
-  const { data: instabilRaw }   = useQuery({ queryKey:["g","instab"],queryFn:()=>api.global.countryInstability(), staleTime:300_000 });
-  const { data: mktImplRaw }    = useQuery({ queryKey:["g","mktimpl"],queryFn:()=>api.global.marketImplications(), staleTime:300_000 });
-  const { data: disastersRaw }  = useQuery({ queryKey:["g","disasters"],queryFn:()=>api.global.disasters(), staleTime:300_000 });
-  const { data: gdeltResp }     = useQuery({ queryKey:["g","gdelt"],queryFn:()=>api.global.gdelt(), staleTime:300_000 });
-  const { data: summary }       = useQuery({ queryKey:["g","summary"],queryFn:()=>api.global.summary(), staleTime:120_000 });
+  const { data: globalBundle }  = useGlobalDashboardBundle();
   const { data: auditList=[] }  = useQuery({ queryKey:["audit","list"],queryFn:()=>api.audit.list(), staleTime:300_000 });
   const { data: gapReport }     = useQuery({ queryKey:["intel","gaps"],queryFn:()=>api.intelligence.gaps(), staleTime:120_000 });
 
@@ -1810,19 +1813,20 @@ export default function NetworkView() {
   }, [logisticsNodes]);
 
   /* ── Derived ────────────────────────────────────────────────── */
-  const chokepoints: ScoredChokepoint[] = chopRaw?.data ?? summary?.chokepoints ?? [];
-  const hazards: GlobalHazard[]         = (hazRaw?.data ?? []).filter(h => isNum(h.lat) && isNum(h.lng));
-  const quakes: Earthquake[]            = (quakeRaw?.data ?? []).filter(q => isNum(q.lat) && isNum(q.lng));
-  const conflicts: ConflictEvent[]      = (conflRaw?.data ?? []).filter(c => isNum(c.lat) && isNum(c.lng));
-  const fires: FireDetection[]          = (fireRaw?.data ?? []).filter(f => isNum(f.lat) && isNum(f.lng));
-  const minerals: CriticalMineral[]     = mineralsRaw?.data ?? summary?.minerals ?? [];
-  const news: NewsArticle[]             = newsRaw?.data ?? [];
-  const instability: CountryInstability[] = instabilRaw?.data ?? summary?.top_instability ?? [];
-  const disasters: GdacsAlert[]         = disastersRaw?.data ?? [];
-  const gdelt: GdeltEvent[]              = gdeltResp?.data ?? [];
-  const stress                          = stressRaw ?? summary?.shipping_stress;
-  const srisk                           = sriskRaw ?? summary?.strategic_risk;
-  const mktImpl                         = mktImplRaw ?? summary?.market_implications;
+  const summary = globalBundle?.summary;
+  const chokepoints: ScoredChokepoint[] = globalBundle?.chokepoints?.data ?? summary?.chokepoints ?? [];
+  const hazards: GlobalHazard[]         = (globalBundle?.hazards?.data ?? []).filter(h => isNum(h.lat) && isNum(h.lng));
+  const quakes: Earthquake[]            = (globalBundle?.earthquakes?.data ?? []).filter(q => isNum(q.lat) && isNum(q.lng));
+  const conflicts: ConflictEvent[]      = (globalBundle?.conflict?.data ?? []).filter(c => isNum(c.lat) && isNum(c.lng));
+  const fires: FireDetection[]          = (globalBundle?.fires?.data ?? []).filter(f => isNum(f.lat) && isNum(f.lng));
+  const minerals: CriticalMineral[]     = globalBundle?.minerals?.data ?? summary?.minerals ?? [];
+  const news: NewsArticle[]             = globalBundle?.news?.data ?? [];
+  const instability: CountryInstability[] = globalBundle?.country_instability?.data ?? summary?.top_instability ?? [];
+  const disasters: GdacsAlert[]         = globalBundle?.disasters?.data ?? [];
+  const gdelt: GdeltEvent[]             = globalBundle?.gdelt?.data ?? [];
+  const stress                          = globalBundle?.shipping_stress ?? summary?.shipping_stress;
+  const srisk                           = globalBundle?.strategic_risk ?? summary?.strategic_risk;
+  const mktImpl                         = globalBundle?.market_implications ?? summary?.market_implications;
 
   const countryOptions = useMemo(() => {
     const set = new Set<string>();

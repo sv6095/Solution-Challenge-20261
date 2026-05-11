@@ -18,6 +18,7 @@ type AuthPersistence = "local" | "session";
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const USER_ID_KEY = "user_id";
+const DISPLAY_NAME_KEY = "display_name";
 const PERSISTENCE_KEY = "auth_persistence";
 /** `local` = backend JWT from email/password; `firebase` = Firebase ID token (e.g. Google sign-in). */
 const AUTH_KIND_KEY = "auth_kind";
@@ -56,6 +57,32 @@ export function getUserId(): string {
   return readStoredValue(USER_ID_KEY);
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64.padEnd(Math.ceil(b64.length / 4) * 4, "=");
+    const json = atob(padded);
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function inferDisplayName(accessToken: string): string {
+  const payload = decodeJwtPayload(accessToken);
+  const byName = String(payload?.name ?? "").trim();
+  if (byName) return byName;
+  const byEmail = String(payload?.email ?? "").trim();
+  if (byEmail) return byEmail.split("@")[0] || byEmail;
+  return "";
+}
+
+export function getDisplayName(): string {
+  return readStoredValue(DISPLAY_NAME_KEY);
+}
+
 export function getAuthPersistence(): AuthPersistence {
   return readStoredValue(PERSISTENCE_KEY) === "local" ? "local" : "session";
 }
@@ -66,12 +93,15 @@ export function storeAuthSession(payload: {
   refreshToken?: string;
   rememberMe?: boolean;
   authKind?: AuthKind;
+  displayName?: string;
 }): void {
   const persistence: AuthPersistence = payload.rememberMe ? "local" : getAuthPersistence();
   const resolvedPersistence: AuthPersistence = payload.rememberMe === undefined ? persistence : (payload.rememberMe ? "local" : "session");
   writeStoredValue(USER_ID_KEY, payload.userId, resolvedPersistence);
   writeStoredValue(ACCESS_TOKEN_KEY, payload.accessToken, resolvedPersistence);
   writeStoredValue(REFRESH_TOKEN_KEY, payload.refreshToken || getRefreshToken(), resolvedPersistence);
+  const displayName = String(payload.displayName ?? "").trim() || inferDisplayName(payload.accessToken) || getDisplayName();
+  writeStoredValue(DISPLAY_NAME_KEY, displayName, resolvedPersistence);
   writeStoredValue(PERSISTENCE_KEY, resolvedPersistence, resolvedPersistence);
   const kind: AuthKind =
     payload.authKind ?? (readStoredValue(AUTH_KIND_KEY) === "firebase" ? "firebase" : "local");
@@ -83,6 +113,7 @@ export function clearAuthSession(): void {
     storage.removeItem(ACCESS_TOKEN_KEY);
     storage.removeItem(REFRESH_TOKEN_KEY);
     storage.removeItem(USER_ID_KEY);
+    storage.removeItem(DISPLAY_NAME_KEY);
     storage.removeItem(PERSISTENCE_KEY);
     storage.removeItem(AUTH_KIND_KEY);
   }
@@ -851,6 +882,7 @@ export const api = {
     airQuality: () => request<{ data: AirQualityRecord[]; source: string }>("/global/air-quality"),
     minerals: () => request<{ data: CriticalMineral[] }>("/global/minerals"),
     summary: () => request<GlobalSummary>("/global/summary"),
+    dashboardBundle: () => request<GlobalDashboardBundle>("/global/dashboard-bundle"),
     refresh: () => request<{ status: string; message: string }>("/global/refresh", { method: "POST" }),
   },
 };
@@ -958,5 +990,29 @@ export interface GlobalSummary {
   active_fires: number;
   conflict_events: number;
   minerals: CriticalMineral[];
+}
+
+export interface GlobalDashboardBundle {
+  summary: GlobalSummary;
+  hazards: { data: GlobalHazard[]; source: string };
+  earthquakes: { data: Earthquake[]; source: string };
+  conflict: { data: ConflictEvent[]; source: string };
+  gdelt: { data: GdeltEvent[]; source: string };
+  disasters: { data: GdacsAlert[]; source: string };
+  news: { data: NewsArticle[]; source: string };
+  market_quotes: { data: MarketQuote[]; source: string };
+  energy: { data: Record<string, unknown>; source: string };
+  macro: { data: Record<string, MacroSeries>; source: string };
+  chokepoints: { data: ScoredChokepoint[]; source: string };
+  shipping_stress: ShippingStress;
+  shipping_indices: { data: ShippingIndex[] };
+  country_instability: { data: CountryInstability[] };
+  strategic_risk: StrategicRisk;
+  market_implications: MarketImplications;
+  fires: { data: FireDetection[]; source: string };
+  aviation: { data: FlightRecord[]; source: string };
+  air_quality: { data: AirQualityRecord[]; source: string };
+  minerals: { data: CriticalMineral[] };
+  generated_at: string;
 }
 

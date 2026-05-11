@@ -75,6 +75,7 @@ export async function completeGoogleOAuthSession(
     refreshToken: "",
     rememberMe,
     authKind: "firebase",
+    displayName: user.displayName || user.email || "",
   });
   if (options?.notify !== false) {
     toast.success("Signed in with Google.");

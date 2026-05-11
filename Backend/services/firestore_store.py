@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from threading import Lock
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
@@ -32,15 +33,32 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+_FIRESTORE_CLIENT: g_firestore.Client | None = None
+_FIRESTORE_CLIENT_LOCK = Lock()
+
+
 def _client() -> g_firestore.Client:
-    project = gcp_project_id()
-    try:
-        return g_firestore.Client(project=project)
-    except Exception as exc:
-        raise RuntimeError(
-            "Firestore is required but could not be initialized. Set FIREBASE_PROJECT_ID "
-            "and GOOGLE_APPLICATION_CREDENTIALS for the backend runtime."
-        ) from exc
+    """
+    Return a process-wide Firestore client singleton.
+
+    Creating a new Firestore client per request is expensive (gRPC channel setup,
+    auth metadata, connection warm-up) and can materially slow API throughput on Render.
+    """
+    global _FIRESTORE_CLIENT
+    if _FIRESTORE_CLIENT is not None:
+        return _FIRESTORE_CLIENT
+    with _FIRESTORE_CLIENT_LOCK:
+        if _FIRESTORE_CLIENT is not None:
+            return _FIRESTORE_CLIENT
+        project = gcp_project_id()
+        try:
+            _FIRESTORE_CLIENT = g_firestore.Client(project=project)
+        except Exception as exc:
+            raise RuntimeError(
+                "Firestore is required but could not be initialized. Set FIREBASE_PROJECT_ID "
+                "and GOOGLE_APPLICATION_CREDENTIALS for the backend runtime."
+            ) from exc
+        return _FIRESTORE_CLIENT
 
 
 def _safe_doc_id(value: Any) -> str:

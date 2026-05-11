@@ -49,6 +49,7 @@ import json
 import logging
 import os
 import time
+from threading import Lock
 from datetime import datetime, timezone
 from typing import Any
 
@@ -58,6 +59,10 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 from services.firestore_store import _client, _safe_doc_id
 
 logger = logging.getLogger(__name__)
+_GDELT_RATE_LIMIT_UNTIL: float = 0.0
+_READ_CACHE_TTL_SECONDS = max(1, int(os.getenv("WORLDMONITOR_READ_CACHE_SECONDS", "30")))
+_READ_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_READ_CACHE_LOCK = Lock()
 
 # ── API keys from environment (worldmonitor conventions) ─────────────────────
 
@@ -117,22 +122,34 @@ CRITICAL_MINERALS = [
 
 def _db_upsert(table: str, key: str, data: Any) -> None:
     """Store JSON payload keyed by name in Firestore."""
+    fetched_at = datetime.now(timezone.utc).isoformat()
     _client().collection("worldmonitor_cache").document(_safe_doc_id(key)).set({
         "key": key,
         "table_name": table,
         "payload": data,
-        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "fetched_at": fetched_at,
     }, merge=True)
+    # Update hot read cache immediately so callers avoid an extra Firestore read.
+    with _READ_CACHE_LOCK:
+        _READ_CACHE[key] = (time.monotonic() + _READ_CACHE_TTL_SECONDS, {"data": data, "fetched_at": fetched_at})
 
 
 def db_read(key: str) -> Any | None:
     """Read a cached payload. Returns None if not found."""
+    now = time.monotonic()
+    with _READ_CACHE_LOCK:
+        cached = _READ_CACHE.get(key)
+        if cached and cached[0] > now:
+            return cached[1]
     try:
         doc = _client().collection("worldmonitor_cache").document(_safe_doc_id(key)).get()
         if not doc.exists:
             return None
         data = doc.to_dict() or {}
-        return {"data": data.get("payload"), "fetched_at": data.get("fetched_at")}
+        payload = {"data": data.get("payload"), "fetched_at": data.get("fetched_at")}
+        with _READ_CACHE_LOCK:
+            _READ_CACHE[key] = (now + _READ_CACHE_TTL_SECONDS, payload)
+        return payload
     except Exception:
         return None
 
@@ -146,10 +163,15 @@ def db_read_all_by_table(table: str) -> list[dict]:
             .where(filter=FieldFilter("table_name", "==", table))
             .stream()
         )
-        return [
-            {"key": (doc.to_dict() or {}).get("key"), "data": (doc.to_dict() or {}).get("payload"), "fetched_at": (doc.to_dict() or {}).get("fetched_at")}
-            for doc in rows
-        ]
+        result: list[dict] = []
+        for doc in rows:
+            payload = doc.to_dict() or {}
+            result.append({
+                "key": payload.get("key"),
+                "data": payload.get("payload"),
+                "fetched_at": payload.get("fetched_at"),
+            })
+        return result
     except Exception:
         return []
 
@@ -326,14 +348,34 @@ async def fetch_conflict_events():
 
 async def fetch_gdelt():
     """GDELT — global event database, supply chain relevant."""
+    global _GDELT_RATE_LIMIT_UNTIL
+    now_ts = time.monotonic()
+    if now_ts < _GDELT_RATE_LIMIT_UNTIL:
+        logger.info("[worldmonitor] GDELT skipped: in rate-limit cooldown")
+        return
+
     # ArtList mode often rejects OR-compound queries with a non-JSON error body; keep a single broad phrase.
     url = (
         "https://api.gdeltproject.org/api/v2/doc/doc?"
         "query=supply+chain"
-        "&mode=ArtList&maxrecords=50&format=json&timespan=3d"
+        "&mode=ArtList&maxrecords=20&format=json&timespan=24h"
     )
     async with httpx.AsyncClient() as c:
-        data = await _safe_get(c, url)
+        resp = await c.get(url, timeout=15, follow_redirects=True)
+        if resp.status_code == 429:
+            retry_after = int(resp.headers.get("Retry-After") or 1800)
+            _GDELT_RATE_LIMIT_UNTIL = now_ts + max(300, retry_after)
+            logger.warning("[worldmonitor] GDELT rate-limited (429). Cooling down for %ss", max(300, retry_after))
+            return
+        if resp.status_code != 200:
+            logger.warning("[worldmonitor] GDELT HTTP %s", resp.status_code)
+            return
+        try:
+            data = resp.json()
+        except Exception:
+            logger.warning("[worldmonitor] GDELT returned non-JSON payload")
+            return
+
     articles = []
     for art in (data.get("articles") or [] if data else [])[:30]:
         articles.append({

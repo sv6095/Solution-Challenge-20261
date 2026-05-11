@@ -35,6 +35,22 @@ const LoginPage = () => {
         rememberMe,
         authKind: "local",
       });
+      try {
+        const profile = await api.auth.profile(res.user_id);
+        const fullName = String(profile.full_name ?? "").trim();
+        if (fullName) {
+          storeAuthSession({
+            userId: res.user_id,
+            accessToken: res.access_token,
+            refreshToken: res.refresh_token,
+            rememberMe,
+            authKind: "local",
+            displayName: fullName,
+          });
+        }
+      } catch {
+        // Non-blocking: login should succeed even if profile lookup fails.
+      }
       toast.success("Signed in.");
       try {
         const status = await api.onboarding.status(res.user_id);

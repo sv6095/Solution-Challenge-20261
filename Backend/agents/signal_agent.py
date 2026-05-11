@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import time
 
 import httpx
 
+_GDELT_RATE_LIMIT_UNTIL: float = 0.0
 
 async def fetch_nasa_eonet() -> list[dict]:
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -48,12 +50,12 @@ async def fetch_gdelt() -> list[dict]:
     GDELT Doc 2.0 API — completely free, no API key.
     Uses the correct timespan format (string suffix) and supply-chain query terms.
     """
-    queries = [
-        "supply chain disruption",
-        "port strike logistics",
-        "trade sanctions embargo",
-        "factory shutdown manufacturing",
-    ]
+    global _GDELT_RATE_LIMIT_UNTIL
+    now_ts = time.monotonic()
+    if now_ts < _GDELT_RATE_LIMIT_UNTIL:
+        return []
+
+    queries = ["supply chain"]
     seen: set[str] = set()
     results: list[dict] = []
 
@@ -71,6 +73,10 @@ async def fetch_gdelt() -> list[dict]:
                         "sort": "DateDesc",
                     },
                 )
+                if r.status_code == 429:
+                    retry_after = int(r.headers.get("Retry-After") or 1800)
+                    _GDELT_RATE_LIMIT_UNTIL = now_ts + max(300, retry_after)
+                    break
                 r.raise_for_status()
                 data = r.json()
             except Exception:
