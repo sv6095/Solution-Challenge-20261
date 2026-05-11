@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from google.cloud import firestore as g_firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 
 def gcp_project_id() -> str | None:
@@ -182,7 +183,11 @@ def get_user_by_email(email: str) -> dict | None:
     idx = _doc_to_dict(db.collection("user_email_index").document(_safe_doc_id(email_l)).get())
     if idx and idx.get("user_id"):
         return get_user_by_id(str(idx["user_id"]))
-    rows = _query_stream(db.collection("users").where("email", "==", email_l).limit(1))
+    rows = _query_stream(
+        db.collection("users")
+        .where(filter=FieldFilter("email", "==", email_l))
+        .limit(1)
+    )
     return rows[0] if rows else None
 
 
@@ -269,7 +274,12 @@ def replace_active_signals(items: list[dict[str, Any]]) -> None:
 
 def purge_archived_signals(days: int = 7) -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-    docs = list(_client().collection("signals_archive").where("archived_at", "<", cutoff).stream())
+    docs = list(
+        _client()
+        .collection("signals_archive")
+        .where(filter=FieldFilter("archived_at", "<", cutoff))
+        .stream()
+    )
     batch = _client().batch()
     for doc in docs:
         batch.delete(doc.reference)
@@ -356,7 +366,12 @@ def cache_delete_entry(cache_key: str) -> None:
 
 
 def cache_prune_expired() -> int:
-    docs = list(_client().collection("cache_entries").where("expires_at", "<=", _now()).stream())
+    docs = list(
+        _client()
+        .collection("cache_entries")
+        .where(filter=FieldFilter("expires_at", "<=", _now()))
+        .stream()
+    )
     batch = _client().batch()
     for doc in docs:
         batch.delete(doc.reference)
@@ -389,7 +404,12 @@ def get_incident(incident_id: str, tenant_id: str | None = None) -> dict[str, An
     if tenant_id:
         data = _doc_to_dict(db.collection("tenants").document(tenant_id).collection("incidents").document(incident_id).get())
         return _incident_doc_to_api(data, incident_id) if data else None
-    for doc in db.collection_group("incidents").where("id", "==", incident_id).limit(1).stream():
+    for doc in (
+        db.collection_group("incidents")
+        .where(filter=FieldFilter("id", "==", incident_id))
+        .limit(1)
+        .stream()
+    ):
         data = doc.to_dict() or {}
         return _incident_doc_to_api(data, doc.id)
     return None
@@ -417,7 +437,12 @@ def delete_incident(incident_id: str, tenant_id: str | None = None) -> int:
     if tenant_id:
         refs = [db.collection("tenants").document(tenant_id).collection("incidents").document(incident_id)]
     else:
-        refs = [doc.reference for doc in db.collection_group("incidents").where("id", "==", incident_id).stream()]
+        refs = [
+            doc.reference
+            for doc in db.collection_group("incidents")
+            .where(filter=FieldFilter("id", "==", incident_id))
+            .stream()
+        ]
     deleted = 0
     for ref in refs:
         if ref.get().exists:
@@ -430,7 +455,7 @@ def list_incidents(status: str | None = None, limit: int = 50, tenant_id: str | 
     db = _client()
     query = db.collection("tenants").document(tenant_id).collection("incidents") if tenant_id else db.collection_group("incidents")
     if status:
-        query = query.where("status", "==", status)
+        query = query.where(filter=FieldFilter("status", "==", status))
     rows = _query_stream(query.order_by("created_at", direction=g_firestore.Query.DESCENDING).limit(limit * 3))
     results: list[dict[str, Any]] = []
     for row in rows:
@@ -493,7 +518,12 @@ def get_orchestration_run(run_id: str, tenant_id: str | None = None) -> dict[str
     db = _client()
     if tenant_id:
         return _doc_to_dict(db.collection("tenants").document(tenant_id).collection("orchestration_runs").document(run_id).get())
-    for doc in db.collection_group("orchestration_runs").where("run_id", "==", run_id).limit(1).stream():
+    for doc in (
+        db.collection_group("orchestration_runs")
+        .where(filter=FieldFilter("run_id", "==", run_id))
+        .limit(1)
+        .stream()
+    ):
         return doc.to_dict() or {}
     return None
 
@@ -502,7 +532,7 @@ def list_orchestration_runs(entity_id: str | None = None, tenant_id: str | None 
     db = _client()
     query = db.collection("tenants").document(tenant_id).collection("orchestration_runs") if tenant_id else db.collection_group("orchestration_runs")
     if entity_id:
-        query = query.where("entity_id", "==", entity_id)
+        query = query.where(filter=FieldFilter("entity_id", "==", entity_id))
     return _query_stream(query.order_by("updated_at", direction=g_firestore.Query.DESCENDING).limit(limit))
 
 
@@ -510,12 +540,22 @@ def get_global_impacted_tenants(duns_number: str) -> list[str]:
     if not duns_number:
         return []
     tenants: set[str] = set()
-    for doc in _client().collection_group("graph_nodes").where("dunsNumber", "==", duns_number).stream():
+    for doc in (
+        _client()
+        .collection_group("graph_nodes")
+        .where(filter=FieldFilter("dunsNumber", "==", duns_number))
+        .stream()
+    ):
         data = doc.to_dict() or {}
         tenant = str(data.get("tenant_id") or "").strip()
         if tenant:
             tenants.add(tenant)
-    for doc in _client().collection_group("graph_nodes").where("duns_number", "==", duns_number).stream():
+    for doc in (
+        _client()
+        .collection_group("graph_nodes")
+        .where(filter=FieldFilter("duns_number", "==", duns_number))
+        .stream()
+    ):
         data = doc.to_dict() or {}
         tenant = str(data.get("tenant_id") or "").strip()
         if tenant:

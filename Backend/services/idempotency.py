@@ -41,6 +41,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from services.firestore_store import _client, _safe_doc_id
 
 
@@ -90,7 +92,12 @@ def _prune_expired() -> None:
     """Delete expired keys. Called on every guard check."""
     cutoff = _now().isoformat()
     db = _client()
-    docs = list(db.collection("idempotency_keys").where("expires_at", "<=", cutoff).limit(100).stream())
+    docs = list(
+        db.collection("idempotency_keys")
+        .where(filter=FieldFilter("expires_at", "<=", cutoff))
+        .limit(100)
+        .stream()
+    )
     batch = db.batch()
     for doc in docs:
         batch.delete(doc.reference)

@@ -53,6 +53,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from services.firestore_store import _client, _safe_doc_id
 
@@ -139,7 +140,12 @@ def db_read(key: str) -> Any | None:
 def db_read_all_by_table(table: str) -> list[dict]:
     """Read all records for a given table name."""
     try:
-        rows = _client().collection("worldmonitor_cache").where("table_name", "==", table).stream()
+        rows = (
+            _client()
+            .collection("worldmonitor_cache")
+            .where(filter=FieldFilter("table_name", "==", table))
+            .stream()
+        )
         return [
             {"key": (doc.to_dict() or {}).get("key"), "data": (doc.to_dict() or {}).get("payload"), "fetched_at": (doc.to_dict() or {}).get("fetched_at")}
             for doc in rows

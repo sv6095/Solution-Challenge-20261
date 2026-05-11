@@ -36,6 +36,8 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from services.firestore_store import _client, add_audit
 
 
@@ -231,13 +233,26 @@ def get_action(action_id: str, include_milestones: bool = True) -> ActionRecord 
 
 
 def list_actions_for_incident(incident_id: str) -> list[ActionRecord]:
-    rows = _client().collection("action_logs").where("incident_id", "==", incident_id).order_by("dispatched_at").stream()
+    rows = (
+        _client()
+        .collection("action_logs")
+        .where(filter=FieldFilter("incident_id", "==", incident_id))
+        .order_by("dispatched_at")
+        .stream()
+    )
     return [_dict_to_record(doc.to_dict() or {}, include_milestones=True) for doc in rows]
 
 
 def list_pending_actions(limit: int = 100) -> list[ActionRecord]:
     """Return actions still in SENT state (awaiting delivery confirmation)."""
-    rows = _client().collection("action_logs").where("status", "==", "SENT").order_by("dispatched_at").limit(limit).stream()
+    rows = (
+        _client()
+        .collection("action_logs")
+        .where(filter=FieldFilter("status", "==", "SENT"))
+        .order_by("dispatched_at")
+        .limit(limit)
+        .stream()
+    )
     return [_dict_to_record(doc.to_dict() or {}) for doc in rows]
 
 
