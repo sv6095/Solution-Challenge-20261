@@ -193,18 +193,17 @@ async def websocket_handler(ws: WebSocket, tenant_id: str) -> None:
 
         # Handle client messages; keepalive is sent by heartbeat task.
         while True:
+            raw = await ws.receive_text()
             try:
-                raw = await ws.receive_text()
-                try:
-                    msg = json.loads(raw)
-                    msg_type = msg.get("type", "")
-                    if msg_type == "ping":
-                        await ws.send_text(json.dumps({
-                            "type": "pong",
-                            "payload": {"timestamp": datetime.now(timezone.utc).isoformat()},
-                        }))
-                except (json.JSONDecodeError, AttributeError):
-                    pass
+                msg = json.loads(raw)
+                msg_type = msg.get("type", "")
+                if msg_type == "ping":
+                    await ws.send_text(json.dumps({
+                        "type": "pong",
+                        "payload": {"timestamp": datetime.now(timezone.utc).isoformat()},
+                    }))
+            except (json.JSONDecodeError, AttributeError):
+                pass
 
     except WebSocketDisconnect as exc:
         logger.info("WS client disconnected: tenant=%s code=%s", tenant_id, getattr(exc, "code", "unknown"))
