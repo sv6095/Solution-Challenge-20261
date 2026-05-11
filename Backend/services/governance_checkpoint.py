@@ -163,16 +163,17 @@ def get_checkpoint_for_incident(incident_id: str, tenant_id: str | None = None) 
     """Return the most recent checkpoint for this incident."""
     db = _client()
     query = db.collection("tenants").document(tenant_id).collection("governance_checkpoints") if tenant_id else db.collection_group("governance_checkpoints")
+    # Avoid composite index requirement: filter by incident_id only, sort in Python.
     rows = list(
         query
         .where(filter=FieldFilter("incident_id", "==", incident_id))
-        .order_by("created_at", direction=g_firestore.Query.DESCENDING)
-        .limit(1)
         .stream()
     )
     if not rows:
         return None
-    return rows[0].to_dict() or {}
+    docs = [r.to_dict() or {} for r in rows]
+    docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+    return docs[0]
 
 
 def list_pending_checkpoints(tenant_id: str, limit: int = 50) -> list[dict[str, Any]]:
@@ -289,14 +290,16 @@ def list_feedback(tenant_id: str, limit: int = 100) -> list[dict[str, Any]]:
 
 def feedback_for_incident(incident_id: str) -> list[dict[str, Any]]:
     """Return all feedback records for a specific incident."""
+    # Avoid composite index requirement: filter by incident_id only, sort in Python.
     rows = (
         _client()
         .collection_group("governance_feedback")
         .where(filter=FieldFilter("incident_id", "==", incident_id))
-        .order_by("created_at", direction=g_firestore.Query.DESCENDING)
         .stream()
     )
-    return [doc.to_dict() or {} for doc in rows]
+    docs = [doc.to_dict() or {} for doc in rows]
+    docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+    return docs
 
 
 def governance_summary(tenant_id: str) -> dict[str, Any]:

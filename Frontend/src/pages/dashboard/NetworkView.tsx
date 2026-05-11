@@ -1827,6 +1827,7 @@ export default function NetworkView() {
   const stress                          = globalBundle?.shipping_stress ?? summary?.shipping_stress;
   const srisk                           = globalBundle?.strategic_risk ?? summary?.strategic_risk;
   const mktImpl                         = globalBundle?.market_implications ?? summary?.market_implications;
+  const quotesRaw                       = globalBundle?.market_quotes;
 
   const countryOptions = useMemo(() => {
     const set = new Set<string>();

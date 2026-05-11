@@ -233,27 +233,30 @@ def get_action(action_id: str, include_milestones: bool = True) -> ActionRecord 
 
 
 def list_actions_for_incident(incident_id: str) -> list[ActionRecord]:
+    # Avoid composite index: filter only, sort in Python.
     rows = (
         _client()
         .collection("action_logs")
         .where(filter=FieldFilter("incident_id", "==", incident_id))
-        .order_by("dispatched_at")
         .stream()
     )
-    return [_dict_to_record(doc.to_dict() or {}, include_milestones=True) for doc in rows]
+    docs = [_dict_to_record(doc.to_dict() or {}, include_milestones=True) for doc in rows]
+    docs.sort(key=lambda r: r.dispatched_at or "")
+    return docs
 
 
 def list_pending_actions(limit: int = 100) -> list[ActionRecord]:
     """Return actions still in SENT state (awaiting delivery confirmation)."""
+    # Avoid composite index: filter only, sort in Python.
     rows = (
         _client()
         .collection("action_logs")
         .where(filter=FieldFilter("status", "==", "SENT"))
-        .order_by("dispatched_at")
-        .limit(limit)
         .stream()
     )
-    return [_dict_to_record(doc.to_dict() or {}) for doc in rows]
+    docs = [_dict_to_record(doc.to_dict() or {}) for doc in rows]
+    docs.sort(key=lambda r: r.dispatched_at or "")
+    return docs[:limit]
 
 
 def action_summary_for_incident(incident_id: str) -> dict[str, Any]:

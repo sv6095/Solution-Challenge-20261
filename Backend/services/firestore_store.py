@@ -473,8 +473,13 @@ def list_incidents(status: str | None = None, limit: int = 50, tenant_id: str | 
     db = _client()
     query = db.collection("tenants").document(tenant_id).collection("incidents") if tenant_id else db.collection_group("incidents")
     if status:
+        # Apply only the equality filter; order_by on a different field would require a composite
+        # index. Fetch a larger batch and sort in Python instead.
         query = query.where(filter=FieldFilter("status", "==", status))
-    rows = _query_stream(query.order_by("created_at", direction=g_firestore.Query.DESCENDING).limit(limit * 3))
+        rows = _query_stream(query.limit(limit * 5))
+        rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+    else:
+        rows = _query_stream(query.order_by("created_at", direction=g_firestore.Query.DESCENDING).limit(limit * 3))
     results: list[dict[str, Any]] = []
     for row in rows:
         data = _incident_doc_to_api(row, str(row.get("_doc_id") or ""))
@@ -550,7 +555,10 @@ def list_orchestration_runs(entity_id: str | None = None, tenant_id: str | None 
     db = _client()
     query = db.collection("tenants").document(tenant_id).collection("orchestration_runs") if tenant_id else db.collection_group("orchestration_runs")
     if entity_id:
-        query = query.where(filter=FieldFilter("entity_id", "==", entity_id))
+        # Avoid composite index: filter only, sort in Python.
+        rows = _query_stream(query.where(filter=FieldFilter("entity_id", "==", entity_id)).limit(limit * 3))
+        rows.sort(key=lambda r: r.get("updated_at", ""), reverse=True)
+        return rows[:limit]
     return _query_stream(query.order_by("updated_at", direction=g_firestore.Query.DESCENDING).limit(limit))
 
 
