@@ -104,24 +104,13 @@ from models.supply_graph import CustomerSupplyGraph
 
 app = FastAPI(title="SupplyShield API", version="0.2.0")
 
-_DEFAULT_CORS_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://praecantator1.vercel.app",
-]
-_CORS_ORIGINS: list[str] = []
-_extra_origins = os.getenv("CORS_ORIGINS", "").strip()
-if _extra_origins:
-    _CORS_ORIGINS = [o.strip() for o in _extra_origins.split(",") if o.strip()]
-if not _CORS_ORIGINS:
-    _CORS_ORIGINS = _DEFAULT_CORS_ORIGINS
-
-_CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", r"https://.*\.vercel\.app").strip() or None
+_DEV_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+_env_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+_CORS_ORIGINS = list(dict.fromkeys(_DEV_ORIGINS + _env_origins))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
-    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Request-Id"],

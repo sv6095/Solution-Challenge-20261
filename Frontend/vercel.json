@@ -12,6 +12,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "$VITE_API_BASE/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

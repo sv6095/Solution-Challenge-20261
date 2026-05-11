@@ -11,9 +11,7 @@ function normalizeApiBase(rawBase?: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
-const BASE = normalizeApiBase(
-  import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? "/api",
-);
+const BASE = normalizeApiBase(import.meta.env.VITE_API_URL ?? "/api");
 
 type AuthPersistence = "local" | "session";
 
