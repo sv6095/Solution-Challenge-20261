@@ -899,6 +899,12 @@ def _network_graph(limit_ports: int = 20, limit_airports: int = 20) -> dict[str,
     return {"hubs": hubs, "routes": routes}
 
 
+@app.get("/api/ping")
+async def ping() -> dict:
+    """Lightweight keepalive endpoint — no auth, no DB calls. Used by the frontend to prevent Render cold-starts."""
+    return {"status": "ok"}
+
+
 @app.get("/health")
 async def health() -> dict:
     return {
